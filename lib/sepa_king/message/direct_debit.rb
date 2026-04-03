@@ -1,4 +1,4 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
 module SEPA
   class DirectDebit < Message
@@ -167,9 +167,22 @@ module SEPA
             builder.IBAN(transaction.iban)
           end
         end
-        if transaction.remittance_information
+        if transaction.remittance_information || transaction.structured_remittance_information
           builder.RmtInf do
-            builder.Ustrd(transaction.remittance_information)
+            if transaction.structured_remittance_information
+              builder.Strd do
+                builder.CdtrRefInf do
+                  builder.Tp do
+                    builder.CdOrPrtry do
+                      builder.Cd('SCOR')
+                    end
+                  end
+                  builder.Ref(transaction.structured_remittance_information)
+                end
+              end
+            else
+              builder.Ustrd(transaction.remittance_information)
+            end
           end
         end
       end

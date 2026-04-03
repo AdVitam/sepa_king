@@ -1,8 +1,8 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 module SEPA
   class CreditTransferTransaction < Transaction
     attr_accessor :service_level,
-                  :creditor_address,
                   :category_purpose
 
     validates_inclusion_of :service_level, :in => %w(SEPA URGP), :allow_nil => true

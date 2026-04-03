@@ -1,4 +1,5 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 module SEPA
   class IBANValidator < ActiveModel::Validator
     # IBAN2007Identifier (taken from schema)
@@ -48,13 +49,20 @@ module SEPA
     end
 
     def valid?(creditor_identifier)
-      if ok = creditor_identifier.to_s.match?(REGEX)
-        # In Germany, the identifier has to be exactly 18 chars long
-        if creditor_identifier[0..1].match?(/DE/i)
-          ok = creditor_identifier.length == 18
-        end
+      return false unless creditor_identifier.to_s.match?(REGEX)
+
+      # In Germany, the identifier has to be exactly 18 chars long
+      if creditor_identifier[0..1].match?(/DE/i)
+        return false unless creditor_identifier.length == 18
       end
-      ok
+
+      # Verify mod-97 check digit (ISO 7064)
+      # Structure: CC DD BBB NNNN...
+      # CC = country code, DD = check digits, BBB = business code (skipped), N = national id
+      check_base = creditor_identifier[0..3] + creditor_identifier[7..]
+      rearranged = check_base[4..] + check_base[0..3]
+      numeric = rearranged.gsub(/[A-Z]/i) { |c| c.upcase.ord - 55 }
+      numeric.to_i % 97 == 1
     end
   end
 

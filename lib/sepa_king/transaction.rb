@@ -1,4 +1,5 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 module SEPA
   class Transaction
     include ActiveModel::Validations
@@ -17,7 +18,8 @@ module SEPA
                   :batch_booking,
                   :currency,
                   :debtor_address,
-                  :creditor_address
+                  :creditor_address,
+                  :structured_remittance_information
 
     convert :name, :instruction, :reference, :remittance_information, to: :text
     convert :amount, to: :decimal
@@ -30,11 +32,28 @@ module SEPA
     validates_numericality_of :amount, greater_than: 0, less_than_or_equal_to: 999_999_999.99
     validates_presence_of :requested_date
     validates_inclusion_of :batch_booking, :in => [true, false]
-    validates_with BICValidator, IBANValidator, message: "%{value} is invalid"
+    validates_with BICValidator, IBANValidator, message: "is invalid"
+
+    validate do |t|
+      if t.remittance_information && t.structured_remittance_information
+        t.errors.add(:base, 'remittance_information and structured_remittance_information are mutually exclusive')
+      end
+    end
+
+    validate do |t|
+      %i[debtor_address creditor_address].each do |field|
+        address = t.public_send(field)
+        if address && !address.valid?
+          address.errors.each do |error|
+            t.errors.add(field, error.full_message)
+          end
+        end
+      end
+    end
 
     def initialize(attributes = {})
       attributes.each do |name, value|
-        send("#{name}=", value)
+        public_send("#{name}=", value)
       end
 
       self.requested_date ||= DEFAULT_REQUESTED_DATE

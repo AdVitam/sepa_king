@@ -1,4 +1,4 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
 module SEPA
   PAIN_008_001_02 = 'pain.008.001.02'
@@ -33,12 +33,14 @@ module SEPA
     def add_transaction(options)
       transaction = transaction_class.new(options)
       raise SEPA::ValidationError.new(transaction.errors.full_messages.join("\n")) unless transaction.valid?
-      @grouped_transactions[transaction_group(transaction)] ||= []
-      @grouped_transactions[transaction_group(transaction)] << transaction
+      group = transaction_group(transaction)
+      @grouped_transactions[group] ||= []
+      @grouped_transactions[group] << transaction
+      @transactions_cache = nil
     end
 
     def transactions
-      grouped_transactions.values.flatten
+      @transactions_cache ||= grouped_transactions.values.flatten
     end
 
     # @return [String] xml
@@ -156,7 +158,7 @@ module SEPA
 
     # Unique and consecutive identifier (used for the <PmntInf> blocks)
     def payment_information_identification(group)
-      "#{message_identification}/#{grouped_transactions.keys.index(group)+1}"
+      "#{message_identification}/#{grouped_transactions.keys.index(group) + 1}"[0, 35]
     end
 
     # Returns a key to determine the group to which the transaction belongs
@@ -176,9 +178,13 @@ module SEPA
       end
     end
 
+    SCHEMA_CACHE = {}
+
     def validate_final_document!(document, schema_name)
-      xsd = Nokogiri::XML::Schema(File.read(File.expand_path("../../lib/schema/#{schema_name}.xsd", __dir__)))
-      errors = xsd.validate(document).map { |error| error.message }
+      xsd = SCHEMA_CACHE[schema_name] ||= Nokogiri::XML::Schema(
+        File.read(File.expand_path("../../lib/schema/#{schema_name}.xsd", __dir__))
+      )
+      errors = xsd.validate(document).map(&:message)
       raise SEPA::SchemaValidationError.new("Incompatible with schema #{schema_name}: #{errors.join(', ')}") if errors.any?
     end
   end
