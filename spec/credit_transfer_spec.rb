@@ -29,7 +29,7 @@ RSpec.describe SEPA::CreditTransfer do
     it 'should fail for invalid transaction' do
       expect {
         credit_transfer.add_transaction name: ''
-      }.to raise_error(ArgumentError)
+      }.to raise_error(SEPA::ValidationError)
     end
   end
 

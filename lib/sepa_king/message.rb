@@ -32,7 +32,7 @@ module SEPA
 
     def add_transaction(options)
       transaction = transaction_class.new(options)
-      raise ArgumentError.new(transaction.errors.full_messages.join("\n")) unless transaction.valid?
+      raise SEPA::ValidationError.new(transaction.errors.full_messages.join("\n")) unless transaction.valid?
       @grouped_transactions[transaction_group(transaction)] ||= []
       @grouped_transactions[transaction_group(transaction)] << transaction
     end
@@ -43,8 +43,8 @@ module SEPA
 
     # @return [String] xml
     def to_xml(schema_name=self.known_schemas.first)
-      raise SEPA::Error.new(errors.full_messages.join("\n")) unless valid?
-      raise SEPA::Error.new("Incompatible with schema #{schema_name}!") unless schema_compatible?(schema_name)
+      raise SEPA::ValidationError.new(errors.full_messages.join("\n")) unless valid?
+      raise SEPA::SchemaValidationError.new("Incompatible with schema #{schema_name}!") unless schema_compatible?(schema_name)
 
       builder = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |builder|
         builder.Document(xml_schema(schema_name)) do
@@ -164,10 +164,22 @@ module SEPA
       transaction
     end
 
+    def build_postal_address(builder, address)
+      builder.PstlAdr do
+        builder.StrtNm(address.street_name)     if address.street_name
+        builder.BldgNb(address.building_number)  if address.building_number
+        builder.PstCd(address.post_code)         if address.post_code
+        builder.TwnNm(address.town_name)         if address.town_name
+        builder.Ctry(address.country_code)       if address.country_code
+        builder.AdrLine(address.address_line1)   if address.address_line1
+        builder.AdrLine(address.address_line2)   if address.address_line2
+      end
+    end
+
     def validate_final_document!(document, schema_name)
       xsd = Nokogiri::XML::Schema(File.read(File.expand_path("../../lib/schema/#{schema_name}.xsd", __dir__)))
       errors = xsd.validate(document).map { |error| error.message }
-      raise SEPA::Error.new("Incompatible with schema #{schema_name}: #{errors.join(', ')}") if errors.any?
+      raise SEPA::SchemaValidationError.new("Incompatible with schema #{schema_name}: #{errors.join(', ')}") if errors.any?
     end
   end
 end

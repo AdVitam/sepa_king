@@ -27,15 +27,17 @@ module SEPA
           builder.BtchBookg(group[:batch_booking])
           builder.NbOfTxs(transactions.length)
           builder.CtrlSum('%.2f' % amount_total(transactions))
-          builder.PmtTpInf do
-            if group[:service_level]
-              builder.SvcLvl do
-                builder.Cd(group[:service_level])
+          if group[:service_level] || group[:category_purpose]
+            builder.PmtTpInf do
+              if group[:service_level]
+                builder.SvcLvl do
+                  builder.Cd(group[:service_level])
+                end
               end
-            end
-            if group[:category_purpose]
-              builder.CtgyPurp do
-                builder.Cd(group[:category_purpose])
+              if group[:category_purpose]
+                builder.CtgyPurp do
+                  builder.Cd(group[:category_purpose])
+                end
               end
             end
           end
@@ -104,44 +106,7 @@ module SEPA
         end
         builder.Cdtr do
           builder.Nm(transaction.name)
-          if transaction.creditor_address
-            builder.PstlAdr do
-              # Only set the fields that are actually provided.
-              # StrtNm, BldgNb, PstCd, TwnNm provide a structured address
-              # separated into its individual fields.
-              # AdrLine provides the address in free format text.
-              # Both are currently allowed and the actual preference depends on the bank.
-              # Also the fields that are required legally may vary depending on the country
-              # or change over time.
-              if transaction.creditor_address.street_name
-                builder.StrtNm transaction.creditor_address.street_name
-              end
-
-              if transaction.creditor_address.building_number
-                builder.BldgNb transaction.creditor_address.building_number
-              end
-
-              if transaction.creditor_address.post_code
-                builder.PstCd transaction.creditor_address.post_code
-              end
-
-              if transaction.creditor_address.town_name
-                builder.TwnNm transaction.creditor_address.town_name
-              end
-
-              if transaction.creditor_address.country_code
-                builder.Ctry transaction.creditor_address.country_code
-              end
-
-              if transaction.creditor_address.address_line1
-                builder.AdrLine transaction.creditor_address.address_line1
-              end
-
-              if transaction.creditor_address.address_line2
-                builder.AdrLine transaction.creditor_address.address_line2
-              end
-            end
-          end
+          build_postal_address(builder, transaction.creditor_address) if transaction.creditor_address
         end
         builder.CdtrAcct do
           builder.Id do

@@ -31,7 +31,7 @@ RSpec.describe SEPA::DirectDebit do
     it 'should fail for invalid transaction' do
       expect {
         direct_debit.add_transaction name: ''
-      }.to raise_error(ArgumentError)
+      }.to raise_error(SEPA::ValidationError)
     end
   end
 
