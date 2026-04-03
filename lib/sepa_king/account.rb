@@ -17,5 +17,7 @@ module SEPA
         public_send("#{name}=", value)
       end
     end
+
+    def initiating_party_id(builder); end
   end
 end

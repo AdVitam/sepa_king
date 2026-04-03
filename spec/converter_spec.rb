@@ -1,4 +1,5 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 RSpec.describe SEPA::Converter do
@@ -36,10 +37,10 @@ RSpec.describe SEPA::Converter do
     end
 
     it 'should convert line breaks' do
-      expect(convert_text("one\ntwo"))    .to eq('one two')
-      expect(convert_text("one\ntwo\n"))  .to eq('one two')
+      expect(convert_text("one\ntwo")).to eq('one two')
+      expect(convert_text("one\ntwo\n")).to eq('one two')
       expect(convert_text("\none\ntwo\n")).to eq('one two')
-      expect(convert_text("one\n\ntwo"))  .to eq('one two')
+      expect(convert_text("one\n\ntwo")).to eq('one two')
     end
 
     it 'should convert number' do
@@ -78,11 +79,11 @@ RSpec.describe SEPA::Converter do
   end
 
   describe :convert_decimal do
-    it "should convert Integer to BigDecimal" do
+    it 'should convert Integer to BigDecimal' do
       expect(convert_decimal(42)).to eq(BigDecimal('42.00'))
     end
 
-    it "should convert Float to BigDecimal" do
+    it 'should convert Float to BigDecimal' do
       expect(convert_decimal(42.12)).to eq(BigDecimal('42.12'))
     end
 

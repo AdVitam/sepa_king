@@ -1,21 +1,22 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 RSpec.describe SEPA::DirectDebit do
-  let(:message_id_regex) { /SEPA-KING\/[0-9a-z_]{22}/ }
+  let(:message_id_regex) { %r{SEPA-KING/[0-9a-z_]{22}} }
 
-  let(:direct_debit) {
-    SEPA::DirectDebit.new name:                'Gläubiger GmbH',
-                          bic:                 'BANKDEFFXXX',
-                          iban:                'DE87200500001234567890',
+  let(:direct_debit) do
+    SEPA::DirectDebit.new name: 'Gläubiger GmbH',
+                          bic: 'BANKDEFFXXX',
+                          iban: 'DE87200500001234567890',
                           creditor_identifier: 'DE98ZZZ09999999999'
-  }
+  end
 
   describe :new do
     it 'should accept missing options' do
-      expect {
+      expect do
         SEPA::DirectDebit.new
-      }.to_not raise_error
+      end.to_not raise_error
     end
   end
 
@@ -29,70 +30,70 @@ RSpec.describe SEPA::DirectDebit do
     end
 
     it 'should fail for invalid transaction' do
-      expect {
+      expect do
         direct_debit.add_transaction name: ''
-      }.to raise_error(SEPA::ValidationError)
+      end.to raise_error(SEPA::ValidationError)
     end
   end
 
   describe :batch_id do
     it 'returns the id of the batch where the given transactions belongs to (1 batch)' do
-      direct_debit.add_transaction(direct_debt_transaction(reference: "EXAMPLE REFERENCE"))
+      direct_debit.add_transaction(direct_debt_transaction(reference: 'EXAMPLE REFERENCE'))
 
-      expect(direct_debit.batch_id("EXAMPLE REFERENCE")).to match(/#{message_id_regex}\/1/)
+      expect(direct_debit.batch_id('EXAMPLE REFERENCE')).to match(%r{#{message_id_regex}/1})
     end
 
     it 'returns the id of the batch where the given transactions belongs to (2 batches)' do
-      direct_debit.add_transaction(direct_debt_transaction(reference: "EXAMPLE REFERENCE 1"))
-      direct_debit.add_transaction(direct_debt_transaction(reference: "EXAMPLE REFERENCE 2", requested_date: Date.today.next.next))
-      direct_debit.add_transaction(direct_debt_transaction(reference: "EXAMPLE REFERENCE 3"))
+      direct_debit.add_transaction(direct_debt_transaction(reference: 'EXAMPLE REFERENCE 1'))
+      direct_debit.add_transaction(direct_debt_transaction(reference: 'EXAMPLE REFERENCE 2', requested_date: Date.today.next.next))
+      direct_debit.add_transaction(direct_debt_transaction(reference: 'EXAMPLE REFERENCE 3'))
 
-      expect(direct_debit.batch_id("EXAMPLE REFERENCE 1")).to match(/#{message_id_regex}\/1/)
-      expect(direct_debit.batch_id("EXAMPLE REFERENCE 2")).to match(/#{message_id_regex}\/2/)
-      expect(direct_debit.batch_id("EXAMPLE REFERENCE 3")).to match(/#{message_id_regex}\/1/)
+      expect(direct_debit.batch_id('EXAMPLE REFERENCE 1')).to match(%r{#{message_id_regex}/1})
+      expect(direct_debit.batch_id('EXAMPLE REFERENCE 2')).to match(%r{#{message_id_regex}/2})
+      expect(direct_debit.batch_id('EXAMPLE REFERENCE 3')).to match(%r{#{message_id_regex}/1})
     end
   end
 
   describe :batches do
     it 'returns an array of batch ids in the sepa message' do
-      direct_debit.add_transaction(direct_debt_transaction(reference: "EXAMPLE REFERENCE 1"))
-      direct_debit.add_transaction(direct_debt_transaction(reference: "EXAMPLE REFERENCE 2", requested_date: Date.today.next.next))
-      direct_debit.add_transaction(direct_debt_transaction(reference: "EXAMPLE REFERENCE 3"))
+      direct_debit.add_transaction(direct_debt_transaction(reference: 'EXAMPLE REFERENCE 1'))
+      direct_debit.add_transaction(direct_debt_transaction(reference: 'EXAMPLE REFERENCE 2', requested_date: Date.today.next.next))
+      direct_debit.add_transaction(direct_debt_transaction(reference: 'EXAMPLE REFERENCE 3'))
 
       expect(direct_debit.batches.size).to eq(2)
-      expect(direct_debit.batches[0]).to match(/#{message_id_regex}\/[0-9]+/)
-      expect(direct_debit.batches[1]).to match(/#{message_id_regex}\/[0-9]+/)
+      expect(direct_debit.batches[0]).to match(%r{#{message_id_regex}/[0-9]+})
+      expect(direct_debit.batches[1]).to match(%r{#{message_id_regex}/[0-9]+})
     end
   end
 
   describe :to_xml do
     context 'for invalid creditor' do
       it 'should fail' do
-        expect {
+        expect do
           SEPA::DirectDebit.new.to_xml
-        }.to raise_error(SEPA::Error, /Name is too short/)
+        end.to raise_error(SEPA::Error, /Name is too short/)
       end
     end
 
     context 'setting debtor address with adrline' do
       subject do
-        sdd = SEPA::DirectDebit.new name:                'Gläubiger GmbH',
-                                    iban:                'DE87200500001234567890',
+        sdd = SEPA::DirectDebit.new name: 'Gläubiger GmbH',
+                                    iban: 'DE87200500001234567890',
                                     creditor_identifier: 'DE98ZZZ09999999999'
 
-        sda = SEPA::DebtorAddress.new country_code:  'CH',
+        sda = SEPA::DebtorAddress.new country_code: 'CH',
                                       address_line1: 'Mustergasse 123',
                                       address_line2: '1234 Musterstadt'
 
-        sdd.add_transaction name:                      'Zahlemann & Söhne GbR',
-                            bic:                       'SPUEDE2UXXX',
-                            iban:                      'DE21500500009876543210',
-                            amount:                    39.99,
-                            reference:                 'XYZ/2013-08-ABO/12345',
-                            remittance_information:    'Unsere Rechnung vom 10.08.2013',
-                            mandate_id:                'K-02-2011-12345',
-                            debtor_address:            sda,
-                            mandate_date_of_signature: Date.new(2011,1,25)
+        sdd.add_transaction name: 'Zahlemann & Söhne GbR',
+                            bic: 'SPUEDE2UXXX',
+                            iban: 'DE21500500009876543210',
+                            amount: 39.99,
+                            reference: 'XYZ/2013-08-ABO/12345',
+                            remittance_information: 'Unsere Rechnung vom 10.08.2013',
+                            mandate_id: 'K-02-2011-12345',
+                            debtor_address: sda,
+                            mandate_date_of_signature: Date.new(2011, 1, 25)
 
         sdd
       end
@@ -112,25 +113,25 @@ RSpec.describe SEPA::DirectDebit do
 
     context 'setting debtor address with structured fields' do
       subject do
-        sdd = SEPA::DirectDebit.new name:                'Gläubiger GmbH',
-                                    iban:                'DE87200500001234567890',
+        sdd = SEPA::DirectDebit.new name: 'Gläubiger GmbH',
+                                    iban: 'DE87200500001234567890',
                                     creditor_identifier: 'DE98ZZZ09999999999'
 
-        sda = SEPA::DebtorAddress.new country_code:    'CH',
-                                      street_name:     'Mustergasse',
+        sda = SEPA::DebtorAddress.new country_code: 'CH',
+                                      street_name: 'Mustergasse',
                                       building_number: '123',
-                                      post_code:       '1234',
-                                      town_name:       'Musterstadt'
+                                      post_code: '1234',
+                                      town_name: 'Musterstadt'
 
-        sdd.add_transaction name:                      'Zahlemann & Söhne GbR',
-                            bic:                       'SPUEDE2UXXX',
-                            iban:                      'DE21500500009876543210',
-                            amount:                    39.99,
-                            reference:                 'XYZ/2013-08-ABO/12345',
-                            remittance_information:    'Unsere Rechnung vom 10.08.2013',
-                            mandate_id:                'K-02-2011-12345',
-                            debtor_address:            sda,
-                            mandate_date_of_signature: Date.new(2011,1,25)
+        sdd.add_transaction name: 'Zahlemann & Söhne GbR',
+                            bic: 'SPUEDE2UXXX',
+                            iban: 'DE21500500009876543210',
+                            amount: 39.99,
+                            reference: 'XYZ/2013-08-ABO/12345',
+                            remittance_information: 'Unsere Rechnung vom 10.08.2013',
+                            mandate_id: 'K-02-2011-12345',
+                            debtor_address: sda,
+                            mandate_date_of_signature: Date.new(2011, 1, 25)
 
         sdd
       end
@@ -151,18 +152,18 @@ RSpec.describe SEPA::DirectDebit do
     context 'for valid creditor' do
       context 'without BIC (IBAN-only)' do
         subject do
-          sdd = SEPA::DirectDebit.new name:                'Gläubiger GmbH',
-                                      iban:                'DE87200500001234567890',
+          sdd = SEPA::DirectDebit.new name: 'Gläubiger GmbH',
+                                      iban: 'DE87200500001234567890',
                                       creditor_identifier: 'DE98ZZZ09999999999'
 
-          sdd.add_transaction name:                      'Zahlemann & Söhne GbR',
-                              bic:                       'SPUEDE2UXXX',
-                              iban:                      'DE21500500009876543210',
-                              amount:                    39.99,
-                              reference:                 'XYZ/2013-08-ABO/12345',
-                              remittance_information:    'Unsere Rechnung vom 10.08.2013',
-                              mandate_id:                'K-02-2011-12345',
-                              mandate_date_of_signature: Date.new(2011,1,25)
+          sdd.add_transaction name: 'Zahlemann & Söhne GbR',
+                              bic: 'SPUEDE2UXXX',
+                              iban: 'DE21500500009876543210',
+                              amount: 39.99,
+                              reference: 'XYZ/2013-08-ABO/12345',
+                              remittance_information: 'Unsere Rechnung vom 10.08.2013',
+                              mandate_id: 'K-02-2011-12345',
+                              mandate_date_of_signature: Date.new(2011, 1, 25)
 
           sdd
         end
@@ -172,9 +173,9 @@ RSpec.describe SEPA::DirectDebit do
         end
 
         it 'should fail for pain.008.002.02' do
-          expect {
+          expect do
             subject.to_xml(SEPA::PAIN_008_002_02)
-          }.to raise_error(SEPA::Error, /Incompatible with schema/)
+          end.to raise_error(SEPA::Error, /Incompatible with schema/)
         end
 
         it 'should validate against pain.008.001.02' do
@@ -194,14 +195,14 @@ RSpec.describe SEPA::DirectDebit do
         subject do
           sdd = direct_debit
 
-          sdd.add_transaction name:                      'Zahlemann & Söhne GbR',
-                              bic:                       'SPUEDE2UXXX',
-                              iban:                      'DE21500500009876543210',
-                              amount:                    39.99,
-                              reference:                 'XYZ/2013-08-ABO/12345',
-                              remittance_information:    'Unsere Rechnung vom 10.08.2013',
-                              mandate_id:                'K-02-2011-12345',
-                              mandate_date_of_signature: Date.new(2011,1,25)
+          sdd.add_transaction name: 'Zahlemann & Söhne GbR',
+                              bic: 'SPUEDE2UXXX',
+                              iban: 'DE21500500009876543210',
+                              amount: 39.99,
+                              reference: 'XYZ/2013-08-ABO/12345',
+                              remittance_information: 'Unsere Rechnung vom 10.08.2013',
+                              mandate_id: 'K-02-2011-12345',
+                              mandate_date_of_signature: Date.new(2011, 1, 25)
 
           sdd
         end
@@ -237,15 +238,15 @@ RSpec.describe SEPA::DirectDebit do
             address_line2: '1234 Musterstadt'
           )
 
-          sdd.add_transaction name:                      'Zahlemann & Söhne GbR',
-                              bic:                       'SPUEDE2UXXX',
-                              iban:                      'DE21500500009876543210',
-                              amount:                    39.99,
-                              reference:                 'XYZ/2013-08-ABO/12345',
-                              remittance_information:    'Unsere Rechnung vom 10.08.2013',
-                              mandate_id:                'K-02-2011-12345',
-                              debtor_address:            sda,
-                              mandate_date_of_signature: Date.new(2011,1,25)
+          sdd.add_transaction name: 'Zahlemann & Söhne GbR',
+                              bic: 'SPUEDE2UXXX',
+                              iban: 'DE21500500009876543210',
+                              amount: 39.99,
+                              reference: 'XYZ/2013-08-ABO/12345',
+                              remittance_information: 'Unsere Rechnung vom 10.08.2013',
+                              mandate_id: 'K-02-2011-12345',
+                              debtor_address: sda,
+                              mandate_date_of_signature: Date.new(2011, 1, 25)
 
           sdd
         end
@@ -275,22 +276,22 @@ RSpec.describe SEPA::DirectDebit do
         subject do
           sdd = direct_debit
 
-          sdd.add_transaction name:                      'Zahlemann & Söhne GbR',
-                              bic:                       'SPUEDE2UXXX',
-                              iban:                      'DE21500500009876543210',
-                              amount:                    39.99,
-                              reference:                 'XYZ/2013-08-ABO/12345',
-                              remittance_information:    'Unsere Rechnung vom 10.08.2013',
-                              mandate_id:                'K-02-2011-12345',
-                              mandate_date_of_signature: Date.new(2011,1,25)
+          sdd.add_transaction name: 'Zahlemann & Söhne GbR',
+                              bic: 'SPUEDE2UXXX',
+                              iban: 'DE21500500009876543210',
+                              amount: 39.99,
+                              reference: 'XYZ/2013-08-ABO/12345',
+                              remittance_information: 'Unsere Rechnung vom 10.08.2013',
+                              mandate_id: 'K-02-2011-12345',
+                              mandate_date_of_signature: Date.new(2011, 1, 25)
 
-          sdd.add_transaction name:                      'Meier & Schulze oHG',
-                              iban:                      'DE68210501700012345678',
-                              amount:                    750.00,
-                              reference:                 'XYZ/2013-08-ABO/6789',
-                              remittance_information:    'Vielen Dank für Ihren Einkauf!',
-                              mandate_id:                'K-08-2010-42123',
-                              mandate_date_of_signature: Date.new(2010,7,25)
+          sdd.add_transaction name: 'Meier & Schulze oHG',
+                              iban: 'DE68210501700012345678',
+                              amount: 750.00,
+                              reference: 'XYZ/2013-08-ABO/6789',
+                              remittance_information: 'Vielen Dank für Ihren Einkauf!',
+                              mandate_id: 'K-08-2010-42123',
+                              mandate_date_of_signature: Date.new(2010, 7, 25)
 
           sdd.to_xml
         end
@@ -304,7 +305,7 @@ RSpec.describe SEPA::DirectDebit do
         end
 
         it 'should contain <PmtInfId>' do
-          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/PmtInfId', /#{message_id_regex}\/1/)
+          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/PmtInfId', %r{#{message_id_regex}/1})
         end
 
         it 'should contain <ReqdColltnDt>' do
@@ -388,9 +389,9 @@ RSpec.describe SEPA::DirectDebit do
         subject do
           sdd = direct_debit
 
-          sdd.add_transaction(direct_debt_transaction.merge requested_date: Date.today + 1)
-          sdd.add_transaction(direct_debt_transaction.merge requested_date: Date.today + 2)
-          sdd.add_transaction(direct_debt_transaction.merge requested_date: Date.today + 2)
+          sdd.add_transaction(direct_debt_transaction.merge(requested_date: Date.today + 1))
+          sdd.add_transaction(direct_debt_transaction.merge(requested_date: Date.today + 2))
+          sdd.add_transaction(direct_debt_transaction.merge(requested_date: Date.today + 2))
 
           sdd.to_xml
         end
@@ -403,8 +404,8 @@ RSpec.describe SEPA::DirectDebit do
         end
 
         it 'should contain two payment_informations with different <PmtInfId>' do
-          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf[1]/PmtInfId', /#{message_id_regex}\/1/)
-          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf[2]/PmtInfId', /#{message_id_regex}\/2/)
+          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf[1]/PmtInfId', %r{#{message_id_regex}/1})
+          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf[2]/PmtInfId', %r{#{message_id_regex}/2})
         end
       end
 
@@ -412,8 +413,8 @@ RSpec.describe SEPA::DirectDebit do
         subject do
           sdd = direct_debit
 
-          sdd.add_transaction(direct_debt_transaction.merge local_instrument: 'CORE')
-          sdd.add_transaction(direct_debt_transaction.merge local_instrument: 'B2B')
+          sdd.add_transaction(direct_debt_transaction.merge(local_instrument: 'CORE'))
+          sdd.add_transaction(direct_debt_transaction.merge(local_instrument: 'B2B'))
 
           sdd
         end
@@ -423,9 +424,9 @@ RSpec.describe SEPA::DirectDebit do
         end
 
         it 'should raise error on XML generation' do
-          expect {
+          expect do
             subject.to_xml
-          }.to raise_error(SEPA::Error, /CORE, COR1 AND B2B must not be mixed in one message/)
+          end.to raise_error(SEPA::Error, /CORE, COR1 AND B2B must not be mixed in one message/)
         end
       end
 
@@ -433,9 +434,9 @@ RSpec.describe SEPA::DirectDebit do
         subject do
           sdd = direct_debit
 
-          sdd.add_transaction(direct_debt_transaction.merge sequence_type: 'OOFF')
-          sdd.add_transaction(direct_debt_transaction.merge sequence_type: 'FRST')
-          sdd.add_transaction(direct_debt_transaction.merge sequence_type: 'FRST')
+          sdd.add_transaction(direct_debt_transaction.merge(sequence_type: 'OOFF'))
+          sdd.add_transaction(direct_debt_transaction.merge(sequence_type: 'FRST'))
+          sdd.add_transaction(direct_debt_transaction.merge(sequence_type: 'FRST'))
 
           sdd.to_xml
         end
@@ -452,9 +453,9 @@ RSpec.describe SEPA::DirectDebit do
         subject do
           sdd = direct_debit
 
-          sdd.add_transaction(direct_debt_transaction.merge batch_booking: false)
-          sdd.add_transaction(direct_debt_transaction.merge batch_booking: true)
-          sdd.add_transaction(direct_debt_transaction.merge batch_booking: true)
+          sdd.add_transaction(direct_debt_transaction.merge(batch_booking: false))
+          sdd.add_transaction(direct_debt_transaction.merge(batch_booking: true))
+          sdd.add_transaction(direct_debt_transaction.merge(batch_booking: true))
 
           sdd.to_xml
         end
@@ -471,10 +472,10 @@ RSpec.describe SEPA::DirectDebit do
         subject do
           sdd = direct_debit
 
-          sdd.add_transaction(direct_debt_transaction.merge requested_date: Date.today + 1, sequence_type: 'OOFF', amount: 1)
-          sdd.add_transaction(direct_debt_transaction.merge requested_date: Date.today + 1, sequence_type: 'FNAL', amount: 2)
-          sdd.add_transaction(direct_debt_transaction.merge requested_date: Date.today + 2, sequence_type: 'OOFF', amount: 4)
-          sdd.add_transaction(direct_debt_transaction.merge requested_date: Date.today + 2, sequence_type: 'FNAL', amount: 8)
+          sdd.add_transaction(direct_debt_transaction.merge(requested_date: Date.today + 1, sequence_type: 'OOFF', amount: 1))
+          sdd.add_transaction(direct_debt_transaction.merge(requested_date: Date.today + 1, sequence_type: 'FNAL', amount: 2))
+          sdd.add_transaction(direct_debt_transaction.merge(requested_date: Date.today + 2, sequence_type: 'OOFF', amount: 4))
+          sdd.add_transaction(direct_debt_transaction.merge(requested_date: Date.today + 2, sequence_type: 'FNAL', amount: 8))
 
           sdd.to_xml
         end
@@ -507,11 +508,11 @@ RSpec.describe SEPA::DirectDebit do
 
           sdd.add_transaction(direct_debt_transaction)
           sdd.add_transaction(direct_debt_transaction.merge(creditor_account: SEPA::CreditorAccount.new(
-                                                                                name:                'Creditor Inc.',
-                                                                                bic:                 'RABONL2U',
-                                                                                iban:                'NL08RABO0135742099',
-                                                                                creditor_identifier: 'NL53ZZZ091734220000'))
-          )
+            name: 'Creditor Inc.',
+            bic: 'RABONL2U',
+            iban: 'NL08RABO0135742099',
+            creditor_identifier: 'NL53ZZZ091734220000'
+          )))
 
           sdd.to_xml
         end
@@ -600,15 +601,15 @@ RSpec.describe SEPA::DirectDebit do
         end
 
         it 'should fail for pain.008.002.02' do
-          expect {
+          expect do
             subject.to_xml(SEPA::PAIN_008_002_02)
-          }.to raise_error(SEPA::Error, /Incompatible with schema/)
+          end.to raise_error(SEPA::Error, /Incompatible with schema/)
         end
 
         it 'should fail for pain.008.003.02' do
-          expect {
+          expect do
             subject.to_xml(SEPA::PAIN_008_003_02)
-          }.to raise_error(SEPA::Error, /Incompatible with schema/)
+          end.to raise_error(SEPA::Error, /Incompatible with schema/)
         end
       end
     end
@@ -623,10 +624,10 @@ RSpec.describe SEPA::DirectDebit do
       end
 
       let(:xml_header) do
-        '<?xml version="1.0" encoding="UTF-8"?>' +
-          "\n<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:#{format}\"" +
-          ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' +
-          " xsi:schemaLocation=\"urn:iso:std:iso:20022:tech:xsd:#{format} #{format}.xsd\">\n"
+        '<?xml version="1.0" encoding="UTF-8"?>' \
+          "\n<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:#{format}\" " \
+          'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' \
+          "xsi:schemaLocation=\"urn:iso:std:iso:20022:tech:xsd:#{format} #{format}.xsd\">\n"
       end
 
       let(:transaction) do

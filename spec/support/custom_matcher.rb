@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'rspec/expectations'
 require 'nokogiri'
 
@@ -9,7 +11,7 @@ RSpec::Matchers.define :validate_against do |xsd|
     expect(@schema).to be_valid(@doc)
   end
 
-  failure_message do |actual|
+  failure_message do |_actual|
     # Return the validation errors as string
     @schema.validate(@doc).join("\n")
   end
@@ -40,21 +42,19 @@ RSpec::Matchers.define :accept do |*values, options|
 
   attributes.each do |attribute|
     match do |actual|
-      values.all? { |value|
+      values.all? do |value|
         expect(
           actual.new(attribute => value).errors_on(attribute).size
         ).to eq 0
-      }
+      end
     end
-  end
 
-  attributes.each do |attribute|
     match_when_negated do |actual|
-      values.all? { |value|
+      values.all? do |value|
         expect(
           actual.new(attribute => value).errors_on(attribute).size
         ).to be >= 1
-      }
+      end
     end
   end
 end

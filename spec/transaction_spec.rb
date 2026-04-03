@@ -1,4 +1,5 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 RSpec.describe SEPA::Transaction do
@@ -30,45 +31,45 @@ RSpec.describe SEPA::Transaction do
     context 'with address_line' do
       it 'should accept valid value' do
         expect(SEPA::Transaction).to accept(SEPA::DebtorAddress.new(
-          country_code: "CH",
-          address_line1: "Musterstrasse 123",
-          address_line2: "1234 Musterstadt"
-        ), for: :debtor_address)
+                                              country_code: 'CH',
+                                              address_line1: 'Musterstrasse 123',
+                                              address_line2: '1234 Musterstadt'
+                                            ), for: :debtor_address)
       end
 
       it 'should accept valid value' do
         expect(SEPA::Transaction).to accept(SEPA::CreditorAddress.new(
-          country_code: "CH",
-          address_line1: "Musterstrasse 123",
-          address_line2: "1234 Musterstadt"
-        ), for: :creditor_address)
+                                              country_code: 'CH',
+                                              address_line1: 'Musterstrasse 123',
+                                              address_line2: '1234 Musterstadt'
+                                            ), for: :creditor_address)
       end
     end
 
     context 'with individual address fields' do
       it 'should accept valid value' do
         expect(SEPA::Transaction).to accept(SEPA::DebtorAddress.new(
-          country_code: "CH",
-          street_name:     'Mustergasse',
-          building_number: '123',
-          post_code:       '1234',
-          town_name:       'Musterstadt'
-        ), for: :debtor_address)
+                                              country_code: 'CH',
+                                              street_name: 'Mustergasse',
+                                              building_number: '123',
+                                              post_code: '1234',
+                                              town_name: 'Musterstadt'
+                                            ), for: :debtor_address)
       end
 
       it 'should accept valid value' do
         expect(SEPA::Transaction).to accept(SEPA::CreditorAddress.new(
-          country_code: "CH",
-          street_name:     'Mustergasse',
-          building_number: '123',
-          post_code:       '1234',
-          town_name:       'Musterstadt'
-        ), for: :creditor_address)
+                                              country_code: 'CH',
+                                              street_name: 'Mustergasse',
+                                              building_number: '123',
+                                              post_code: '1234',
+                                              town_name: 'Musterstadt'
+                                            ), for: :creditor_address)
       end
     end
 
     it 'should not accept invalid value' do
-      expect(SEPA::Transaction).not_to accept('', {} , for: :name)
+      expect(SEPA::Transaction).not_to accept('', {}, for: :name)
     end
   end
 
