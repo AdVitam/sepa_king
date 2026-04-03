@@ -94,11 +94,11 @@ RSpec.describe SEPA::Transaction do
 
   context 'Amount' do
     it 'should accept valid value' do
-      expect(SEPA::Transaction).to accept(0.01, 1, 100, 100.00, 99.99, 1234567890.12, BigDecimal('10'), '42', '42.51', '42.512', 1.23456, for: :amount)
+      expect(SEPA::Transaction).to accept(0.01, 1, 100, 100.00, 99.99, 999_999_999.99, BigDecimal('10'), '42', '42.51', '42.512', 1.23456, for: :amount)
     end
 
     it 'should not accept invalid value' do
-      expect(SEPA::Transaction).not_to accept(nil, 0, -3, 'xz', for: :amount)
+      expect(SEPA::Transaction).not_to accept(nil, 0, -3, 'xz', 1_000_000_000, for: :amount)
     end
   end
 

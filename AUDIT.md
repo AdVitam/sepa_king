@@ -61,7 +61,7 @@ builder.BIC(group[:account].bic)
 - **Issue**: `activemodel >= 4.2` allows versions with known CVEs (Rails 4.x, 5.x). Unconstrained `nokogiri` allows old vulnerable versions.
 - **Fix**: `activemodel >= 6.1, < 9` and `nokogiri >= 1.13`
 
-- [ ] Fixed
+- [x] Fixed
 
 ### H2 — No XML validation tests for the new schemas (PR #117)
 
@@ -76,7 +76,7 @@ builder.BIC(group[:account].bic)
 - **Issue**: 38 strictly identical lines × 2. Address XML construction in `credit_transfer.rb` and `direct_debit.rb` is also duplicated.
 - **Fix**: Extract `SEPA::Address` as a base class + `build_postal_address(builder, address)` on `Message`
 
-- [ ] Fixed
+- [x] Fixed
 
 ### H4 — Flat error hierarchy
 
@@ -84,7 +84,7 @@ builder.BIC(group[:account].bic)
 - **Issue**: Single class `SEPA::Error < RuntimeError`. Inconsistent mix with raw `ArgumentError`. No way to `rescue` selectively.
 - **Fix**: Typed hierarchy: `SEPA::Error` → `SEPA::ValidationError`, `SEPA::SchemaValidationError`
 
-- [ ] Fixed
+- [x] Fixed
 
 ### H5 — Potentially empty `PmtTpInf`
 
@@ -92,14 +92,14 @@ builder.BIC(group[:account].bic)
 - **Issue**: The `PmtTpInf` block is generated even when both `service_level` and `category_purpose` are nil, producing an empty XML element that XSD may reject.
 - **Fix**: Only generate the block when at least one child is present
 
-- [ ] Fixed
+- [x] Fixed
 
 ### H6 — No maximum amount
 
 - **Issue**: SEPA XSD enforces `maxInclusive 999999999.99`. Ruby validation only has `greater_than: 0`. An amount > 1 billion passes Ruby validation but fails XSD.
 - **Fix**: Add `less_than_or_equal_to: 999_999_999.99` to `amount` validation
 
-- [ ] Fixed
+- [x] Fixed
 
 ---
 
