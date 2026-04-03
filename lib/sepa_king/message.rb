@@ -13,6 +13,8 @@ module SEPA
   PAIN_001_003_03 = 'pain.001.003.03'
   PAIN_001_001_03_CH_02 = 'pain.001.001.03.ch.02'
 
+  BICFI_SCHEMAS = [PAIN_001_001_09, PAIN_001_001_13, PAIN_008_001_08, PAIN_008_001_12].freeze
+
   class Message
     include ActiveModel::Validations
 
@@ -63,7 +65,7 @@ module SEPA
     end
 
     def amount_total(selected_transactions = transactions)
-      selected_transactions.inject(0) { |sum, t| sum + t.amount }
+      selected_transactions.sum(&:amount)
     end
 
     def schema_compatible?(schema_name)
@@ -117,7 +119,7 @@ module SEPA
     end
 
     def batches
-      grouped_transactions.keys.collect { |group| payment_information_identification(group) }
+      grouped_transactions.keys.map { |group| payment_information_identification(group) }
     end
 
     SCHEMA_CACHE = {} # rubocop:disable Style/MutableConstant
@@ -126,19 +128,19 @@ module SEPA
 
     # @return {Hash<Symbol=>String>} xml schema information used in output xml
     def xml_schema(schema_name)
-      unless schema_name == PAIN_001_001_03_CH_02
-        return {
+      if schema_name == PAIN_001_001_03_CH_02
+        {
+          xmlns: 'http://www.six-interbank-clearing.com/de/pain.001.001.03.ch.02.xsd',
+          'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+          'xsi:schemaLocation': 'http://www.six-interbank-clearing.com/de/pain.001.001.03.ch.02.xsd  pain.001.001.03.ch.02.xsd'
+        }
+      else
+        {
           xmlns: "urn:iso:std:iso:20022:tech:xsd:#{schema_name}",
           'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
           'xsi:schemaLocation': "urn:iso:std:iso:20022:tech:xsd:#{schema_name} #{schema_name}.xsd"
         }
       end
-
-      {
-        xmlns: 'http://www.six-interbank-clearing.com/de/pain.001.001.03.ch.02.xsd',
-        'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-        'xsi:schemaLocation': 'http://www.six-interbank-clearing.com/de/pain.001.001.03.ch.02.xsd  pain.001.001.03.ch.02.xsd'
-      }
     end
 
     def build_group_header(builder)
@@ -146,18 +148,10 @@ module SEPA
         builder.MsgId(message_identification)
         builder.CreDtTm(creation_date_time)
         builder.NbOfTxs(transactions.length)
-        builder.CtrlSum('%.2f' % amount_total)
+        builder.CtrlSum(format_amount(amount_total))
         builder.InitgPty do
           builder.Nm(account.name)
-          if account.respond_to? :creditor_identifier
-            builder.Id do
-              builder.OrgId do
-                builder.Othr do
-                  builder.Id(account.creditor_identifier)
-                end
-              end
-            end
-          end
+          account.initiating_party_id(builder)
         end
       end
     end
@@ -184,6 +178,47 @@ module SEPA
         builder.AdrLine(address.address_line1)   if address.address_line1
         builder.AdrLine(address.address_line2)   if address.address_line2
       end
+    end
+
+    def build_agent_bic(builder, bic, schema_name, fallback: true)
+      builder.FinInstnId do
+        if bic
+          if BICFI_SCHEMAS.include?(schema_name)
+            builder.BICFI(bic)
+          else
+            builder.BIC(bic)
+          end
+        elsif fallback
+          builder.Othr do
+            builder.Id('NOTPROVIDED')
+          end
+        end
+      end
+    end
+
+    def build_remittance_information(builder, transaction)
+      return unless transaction.remittance_information || transaction.structured_remittance_information
+
+      builder.RmtInf do
+        if transaction.structured_remittance_information
+          builder.Strd do
+            builder.CdtrRefInf do
+              builder.Tp do
+                builder.CdOrPrtry do
+                  builder.Cd('SCOR')
+                end
+              end
+              builder.Ref(transaction.structured_remittance_information)
+            end
+          end
+        else
+          builder.Ustrd(transaction.remittance_information)
+        end
+      end
+    end
+
+    def format_amount(value)
+      format('%.2f', value)
     end
 
     def validate_final_document!(document, schema_name)

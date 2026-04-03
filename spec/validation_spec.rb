@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 RSpec.describe 'Credit Transfer Initiation' do
-  it "should validate example file" do
+  it 'should validate example file' do
     expect(File.read('spec/examples/pain.001.002.03.xml')).to validate_against('pain.001.002.03.xsd')
     expect(File.read('spec/examples/pain.001.003.03.xml')).to validate_against('pain.001.003.03.xsd')
   end

@@ -68,7 +68,7 @@ module SEPA
 
     protected
 
-    # Note: This validation only checks that the date is not in the past.
+    # NOTE: This validation only checks that the date is not in the past.
     # It does NOT validate against the TARGET2 business calendar (weekends, holidays).
     # Callers should ensure the requested date falls on a TARGET2 business day.
     def validate_requested_date_after(min_requested_date)

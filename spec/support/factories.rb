@@ -1,24 +1,22 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
-def credit_transfer_transaction(attributes={})
-  { name:                   'Telekomiker AG',
-    bic:                    'PBNKDEFF370',
-    iban:                   'DE37112589611964645802',
-    amount:                 102.50,
-    reference:              'XYZ-1234/123',
-    remittance_information: 'Rechnung vom 22.08.2013'
-  }.merge(attributes)
+def credit_transfer_transaction(attributes = {})
+  { name: 'Telekomiker AG',
+    bic: 'PBNKDEFF370',
+    iban: 'DE37112589611964645802',
+    amount: 102.50,
+    reference: 'XYZ-1234/123',
+    remittance_information: 'Rechnung vom 22.08.2013' }.merge(attributes)
 end
 
-def direct_debt_transaction(attributes={})
-  { name:                      'Müller & Schmidt oHG',
-    bic:                       'GENODEF1JEV',
-    iban:                      'DE68210501700012345678',
-    amount:                    750.00,
-    reference:                 'XYZ/2013-08-ABO/6789',
-    remittance_information:    'Vielen Dank für Ihren Einkauf!',
-    mandate_id:                'K-08-2010-42123',
-    mandate_date_of_signature: Date.new(2010,7,25),
-    requested_date:            Date.today + 1
-  }.merge(attributes)
+def direct_debt_transaction(attributes = {})
+  { name: 'Müller & Schmidt oHG',
+    bic: 'GENODEF1JEV',
+    iban: 'DE68210501700012345678',
+    amount: 750.00,
+    reference: 'XYZ/2013-08-ABO/6789',
+    remittance_information: 'Vielen Dank für Ihren Einkauf!',
+    mandate_id: 'K-08-2010-42123',
+    mandate_date_of_signature: Date.new(2010, 7, 25),
+    requested_date: Date.today + 1 }.merge(attributes)
 end

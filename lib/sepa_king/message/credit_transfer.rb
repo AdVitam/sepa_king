@@ -26,7 +26,7 @@ module SEPA
           builder.PmtMtd('TRF')
           builder.BtchBookg(group[:batch_booking])
           builder.NbOfTxs(transactions.length)
-          builder.CtrlSum('%.2f' % amount_total(transactions))
+          builder.CtrlSum(format_amount(amount_total(transactions)))
           if group[:service_level] || group[:category_purpose]
             builder.PmtTpInf do
               if group[:service_level]
@@ -57,19 +57,8 @@ module SEPA
             end
           end
           builder.DbtrAgt do
-            builder.FinInstnId do
-              if account.bic
-                if [PAIN_001_001_09, PAIN_001_001_13].include?(schema_name)
-                  builder.BICFI(account.bic)
-                else
-                  builder.BIC(account.bic)
-                end
-              elsif schema_name != PAIN_001_001_03_CH_02
-                builder.Othr do
-                  builder.Id('NOTPROVIDED')
-                end
-              end
-            end
+            build_agent_bic(builder, account.bic, schema_name,
+                            fallback: schema_name != PAIN_001_001_03_CH_02)
           end
           builder.ChrgBr('SLEV') if group[:service_level]
 
@@ -87,17 +76,11 @@ module SEPA
           builder.EndToEndId(transaction.reference)
         end
         builder.Amt do
-          builder.InstdAmt('%.2f' % transaction.amount, Ccy: transaction.currency)
+          builder.InstdAmt(format_amount(transaction.amount), Ccy: transaction.currency)
         end
         if transaction.bic
           builder.CdtrAgt do
-            builder.FinInstnId do
-              if [PAIN_001_001_09, PAIN_001_001_13].include?(schema_name)
-                builder.BICFI(transaction.bic)
-              else
-                builder.BIC(transaction.bic)
-              end
-            end
+            build_agent_bic(builder, transaction.bic, schema_name, fallback: false)
           end
         end
         builder.Cdtr do
@@ -109,24 +92,7 @@ module SEPA
             builder.IBAN(transaction.iban)
           end
         end
-        if transaction.remittance_information || transaction.structured_remittance_information
-          builder.RmtInf do
-            if transaction.structured_remittance_information
-              builder.Strd do
-                builder.CdtrRefInf do
-                  builder.Tp do
-                    builder.CdOrPrtry do
-                      builder.Cd('SCOR')
-                    end
-                  end
-                  builder.Ref(transaction.structured_remittance_information)
-                end
-              end
-            else
-              builder.Ustrd(transaction.remittance_information)
-            end
-          end
-        end
+        build_remittance_information(builder, transaction)
       end
     end
   end

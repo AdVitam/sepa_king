@@ -1,19 +1,20 @@
-# encoding: utf-8
+# frozen_string_literal: true
+
 require 'spec_helper'
 
 RSpec.describe SEPA::CreditTransfer do
-  let(:message_id_regex) { /SEPA-KING\/[0-9a-z_]{22}/ }
-  let(:credit_transfer) {
-    SEPA::CreditTransfer.new name:       'Schuldner GmbH',
-                             bic:        'BANKDEFFXXX',
-                             iban:       'DE87200500001234567890'
-  }
+  let(:message_id_regex) { %r{SEPA-KING/[0-9a-z_]{22}} }
+  let(:credit_transfer) do
+    SEPA::CreditTransfer.new name: 'Schuldner GmbH',
+                             bic: 'BANKDEFFXXX',
+                             iban: 'DE87200500001234567890'
+  end
 
   describe :new do
     it 'should accept missing options' do
-      expect {
+      expect do
         SEPA::CreditTransfer.new
-      }.to_not raise_error
+      end.to_not raise_error
     end
   end
 
@@ -27,18 +28,18 @@ RSpec.describe SEPA::CreditTransfer do
     end
 
     it 'should fail for invalid transaction' do
-      expect {
+      expect do
         credit_transfer.add_transaction name: ''
-      }.to raise_error(SEPA::ValidationError)
+      end.to raise_error(SEPA::ValidationError)
     end
   end
 
   describe :to_xml do
     context 'for invalid debtor' do
       it 'should fail' do
-        expect {
+        expect do
           SEPA::CreditTransfer.new.to_xml
-        }.to raise_error(SEPA::Error, /Name is too short/)
+        end.to raise_error(SEPA::Error, /Name is too short/)
       end
     end
 
@@ -47,17 +48,17 @@ RSpec.describe SEPA::CreditTransfer do
         sct = SEPA::CreditTransfer.new name: 'Schuldner GmbH',
                                        iban: 'DE87200500001234567890'
 
-        sca = SEPA::CreditorAddress.new country_code:  'CH',
+        sca = SEPA::CreditorAddress.new country_code: 'CH',
                                         address_line1: 'Mustergasse 123',
                                         address_line2: '1234 Musterstadt'
 
-        sct.add_transaction name:                   'Telekomiker AG',
-                            bic:                    'PBNKDEFF370',
-                            iban:                   'DE37112589611964645802',
-                            amount:                 102.50,
-                            reference:              'XYZ-1234/123',
+        sct.add_transaction name: 'Telekomiker AG',
+                            bic: 'PBNKDEFF370',
+                            iban: 'DE37112589611964645802',
+                            amount: 102.50,
+                            reference: 'XYZ-1234/123',
                             remittance_information: 'Rechnung vom 22.08.2013',
-                            creditor_address:       sca
+                            creditor_address: sca
 
         sct
       end
@@ -79,21 +80,21 @@ RSpec.describe SEPA::CreditTransfer do
       subject do
         sct = SEPA::CreditTransfer.new name: 'Schuldner GmbH',
                                        iban: 'DE87200500001234567890',
-                                       bic:  'BANKDEFFXXX'
+                                       bic: 'BANKDEFFXXX'
 
-        sca = SEPA::CreditorAddress.new country_code:    'CH',
-                                        street_name:     'Mustergasse',
+        sca = SEPA::CreditorAddress.new country_code: 'CH',
+                                        street_name: 'Mustergasse',
                                         building_number: '123',
-                                        post_code:       '1234',
-                                        town_name:       'Musterstadt'
+                                        post_code: '1234',
+                                        town_name: 'Musterstadt'
 
-        sct.add_transaction name:                   'Telekomiker AG',
-                            bic:                    'PBNKDEFF370',
-                            iban:                   'DE37112589611964645802',
-                            amount:                 102.50,
-                            reference:              'XYZ-1234/123',
+        sct.add_transaction name: 'Telekomiker AG',
+                            bic: 'PBNKDEFF370',
+                            iban: 'DE37112589611964645802',
+                            amount: 102.50,
+                            reference: 'XYZ-1234/123',
                             remittance_information: 'Rechnung vom 22.08.2013',
-                            creditor_address:       sca
+                            creditor_address: sca
 
         sct
       end
@@ -114,15 +115,15 @@ RSpec.describe SEPA::CreditTransfer do
     context 'for valid debtor' do
       context 'without BIC (IBAN-only)' do
         subject do
-          sct = SEPA::CreditTransfer.new name:       'Schuldner GmbH',
-                                         iban:       'DE87200500001234567890'
+          sct = SEPA::CreditTransfer.new name: 'Schuldner GmbH',
+                                         iban: 'DE87200500001234567890'
 
-          sct.add_transaction name:                   'Telekomiker AG',
-                              bic:                    'PBNKDEFF370',
-                              iban:                   'DE37112589611964645802',
-                              amount:                 102.50,
-                              currency:               currency,
-                              reference:              'XYZ-1234/123',
+          sct.add_transaction name: 'Telekomiker AG',
+                              bic: 'PBNKDEFF370',
+                              iban: 'DE37112589611964645802',
+                              amount: 102.50,
+                              currency: currency,
+                              reference: 'XYZ-1234/123',
                               remittance_information: 'Rechnung vom 22.08.2013'
 
           sct
@@ -155,9 +156,9 @@ RSpec.describe SEPA::CreditTransfer do
         end
 
         it 'should fail for pain.001.002.03' do
-          expect {
+          expect do
             subject.to_xml(SEPA::PAIN_001_002_03)
-          }.to raise_error(SEPA::Error, /Incompatible with schema/)
+          end.to raise_error(SEPA::Error, /Incompatible with schema/)
         end
       end
 
@@ -165,11 +166,11 @@ RSpec.describe SEPA::CreditTransfer do
         subject do
           sct = credit_transfer
 
-          sct.add_transaction name:                   'Telekomiker AG',
-                              bic:                    'PBNKDEFF370',
-                              iban:                   'DE37112589611964645802',
-                              amount:                 102.50,
-                              reference:              'XYZ-1234/123',
+          sct.add_transaction name: 'Telekomiker AG',
+                              bic: 'PBNKDEFF370',
+                              iban: 'DE37112589611964645802',
+                              amount: 102.50,
+                              reference: 'XYZ-1234/123',
                               remittance_information: 'Rechnung vom 22.08.2013'
 
           sct
@@ -200,17 +201,17 @@ RSpec.describe SEPA::CreditTransfer do
         subject do
           sct = credit_transfer
 
-          sct.add_transaction name:                   'Telekomiker AG',
-                              bic:                    'PBNKDEFF370',
-                              iban:                   'DE37112589611964645802',
-                              amount:                 102.50,
-                              reference:              'XYZ-1234/123',
+          sct.add_transaction name: 'Telekomiker AG',
+                              bic: 'PBNKDEFF370',
+                              iban: 'DE37112589611964645802',
+                              amount: 102.50,
+                              reference: 'XYZ-1234/123',
                               remittance_information: 'Rechnung vom 22.08.2013'
 
-          sct.add_transaction name:                   'Amazonas GmbH',
-                              iban:                   'DE27793589132923472195',
-                              amount:                 59.00,
-                              reference:              'XYZ-5678/456',
+          sct.add_transaction name: 'Amazonas GmbH',
+                              iban: 'DE27793589132923472195',
+                              amount: 59.00,
+                              reference: 'XYZ-5678/456',
                               remittance_information: 'Rechnung vom 21.08.2013'
 
           sct.to_xml
@@ -225,7 +226,7 @@ RSpec.describe SEPA::CreditTransfer do
         end
 
         it 'should contain <PmtInfId>' do
-          expect(subject).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/PmtInfId', /#{message_id_regex}\/1/)
+          expect(subject).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/PmtInfId', %r{#{message_id_regex}/1})
         end
 
         it 'should contain <ReqdExctnDt>' do
@@ -295,9 +296,9 @@ RSpec.describe SEPA::CreditTransfer do
         subject do
           sct = credit_transfer
 
-          sct.add_transaction(credit_transfer_transaction.merge requested_date: Date.today + 1)
-          sct.add_transaction(credit_transfer_transaction.merge requested_date: Date.today + 2)
-          sct.add_transaction(credit_transfer_transaction.merge requested_date: Date.today + 2)
+          sct.add_transaction(credit_transfer_transaction.merge(requested_date: Date.today + 1))
+          sct.add_transaction(credit_transfer_transaction.merge(requested_date: Date.today + 2))
+          sct.add_transaction(credit_transfer_transaction.merge(requested_date: Date.today + 2))
 
           sct.to_xml
         end
@@ -310,8 +311,8 @@ RSpec.describe SEPA::CreditTransfer do
         end
 
         it 'should contain two payment_informations with different <PmtInfId>' do
-          expect(subject).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf[1]/PmtInfId', /#{message_id_regex}\/1/)
-          expect(subject).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf[2]/PmtInfId', /#{message_id_regex}\/2/)
+          expect(subject).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf[1]/PmtInfId', %r{#{message_id_regex}/1})
+          expect(subject).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf[2]/PmtInfId', %r{#{message_id_regex}/2})
         end
       end
 
@@ -319,9 +320,9 @@ RSpec.describe SEPA::CreditTransfer do
         subject do
           sct = credit_transfer
 
-          sct.add_transaction(credit_transfer_transaction.merge batch_booking: false)
-          sct.add_transaction(credit_transfer_transaction.merge batch_booking: true)
-          sct.add_transaction(credit_transfer_transaction.merge batch_booking: true)
+          sct.add_transaction(credit_transfer_transaction.merge(batch_booking: false))
+          sct.add_transaction(credit_transfer_transaction.merge(batch_booking: true))
+          sct.add_transaction(credit_transfer_transaction.merge(batch_booking: true))
 
           sct.to_xml
         end
@@ -338,11 +339,11 @@ RSpec.describe SEPA::CreditTransfer do
         subject do
           sct = credit_transfer
 
-          sct.add_transaction(credit_transfer_transaction.merge requested_date: Date.today + 1, batch_booking: false, amount: 1)
-          sct.add_transaction(credit_transfer_transaction.merge requested_date: Date.today + 1, batch_booking: true,  amount: 2)
-          sct.add_transaction(credit_transfer_transaction.merge requested_date: Date.today + 2, batch_booking: false, amount: 4)
-          sct.add_transaction(credit_transfer_transaction.merge requested_date: Date.today + 2, batch_booking: true,  amount: 8)
-          sct.add_transaction(credit_transfer_transaction.merge requested_date: Date.today + 2, batch_booking: true, category_purpose: 'SALA',  amount: 6)
+          sct.add_transaction(credit_transfer_transaction.merge(requested_date: Date.today + 1, batch_booking: false, amount: 1))
+          sct.add_transaction(credit_transfer_transaction.merge(requested_date: Date.today + 1, batch_booking: true,  amount: 2))
+          sct.add_transaction(credit_transfer_transaction.merge(requested_date: Date.today + 2, batch_booking: false, amount: 4))
+          sct.add_transaction(credit_transfer_transaction.merge(requested_date: Date.today + 2, batch_booking: true,  amount: 8))
+          sct.add_transaction(credit_transfer_transaction.merge(requested_date: Date.today + 2, batch_booking: true, category_purpose: 'SALA', amount: 6))
 
           sct.to_xml
         end
@@ -376,10 +377,10 @@ RSpec.describe SEPA::CreditTransfer do
         subject do
           sct = credit_transfer
 
-          sct.add_transaction name:                   'Telekomiker AG',
-                              iban:                   'DE37112589611964645802',
-                              amount:                 102.50,
-                              instruction:            '1234/ABC'
+          sct.add_transaction name: 'Telekomiker AG',
+                              iban: 'DE37112589611964645802',
+                              amount: 102.50,
+                              instruction: '1234/ABC'
 
           sct.to_xml
         end
@@ -397,11 +398,11 @@ RSpec.describe SEPA::CreditTransfer do
         subject do
           sct = credit_transfer
 
-          sct.add_transaction name:                   'Telekomiker AG',
-                              iban:                   'DE37112589611964645802',
-                              bic:                    'PBNKDEFF370',
-                              amount:                 102.50,
-                              currency:               'CHF'
+          sct.add_transaction name: 'Telekomiker AG',
+                              iban: 'DE37112589611964645802',
+                              bic: 'PBNKDEFF370',
+                              amount: 102.50,
+                              currency: 'CHF'
 
           sct
         end
@@ -420,15 +421,15 @@ RSpec.describe SEPA::CreditTransfer do
         end
 
         it 'should fail for pain.001.002.03' do
-          expect {
+          expect do
             subject.to_xml(SEPA::PAIN_001_002_03)
-          }.to raise_error(SEPA::Error, /Incompatible with schema/)
+          end.to raise_error(SEPA::Error, /Incompatible with schema/)
         end
 
         it 'should fail for pain.001.003.03' do
-          expect {
+          expect do
             subject.to_xml(SEPA::PAIN_001_003_03)
-          }.to raise_error(SEPA::Error, /Incompatible with schema/)
+          end.to raise_error(SEPA::Error, /Incompatible with schema/)
         end
       end
 
@@ -436,9 +437,9 @@ RSpec.describe SEPA::CreditTransfer do
         subject do
           sct = credit_transfer
 
-          sct.add_transaction name:                   'Telekomiker AG',
-                              iban:                   'DE37112589611964645802',
-                              amount:                 102.50
+          sct.add_transaction name: 'Telekomiker AG',
+                              iban: 'DE37112589611964645802',
+                              amount: 102.50
 
           sct
         end
@@ -456,9 +457,9 @@ RSpec.describe SEPA::CreditTransfer do
         end
 
         it 'should fail for pain.001.002.03' do
-          expect {
+          expect do
             subject.to_xml(SEPA::PAIN_001_002_03)
-          }.to raise_error(SEPA::Error, /Incompatible with schema/)
+          end.to raise_error(SEPA::Error, /Incompatible with schema/)
         end
 
         it 'should validate against pain.001.003.03' do
@@ -471,10 +472,10 @@ RSpec.describe SEPA::CreditTransfer do
       subject { credit_transfer.to_xml(format) }
 
       let(:xml_header) do
-        '<?xml version="1.0" encoding="UTF-8"?>' +
-          "\n<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:#{format}\"" +
-          ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' +
-          " xsi:schemaLocation=\"urn:iso:std:iso:20022:tech:xsd:#{format} #{format}.xsd\">\n"
+        '<?xml version="1.0" encoding="UTF-8"?>' \
+          "\n<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:#{format}\" " \
+          'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' \
+          "xsi:schemaLocation=\"urn:iso:std:iso:20022:tech:xsd:#{format} #{format}.xsd\">\n"
       end
 
       let(:transaction) do
@@ -540,7 +541,7 @@ RSpec.describe SEPA::CreditTransfer do
         let(:credit_transfer) do
           SEPA::CreditTransfer.new name: 'Schuldner GmbH',
                                    iban: 'CH5481230000001998736',
-                                   bic:  'RAIFCH22'
+                                   bic: 'RAIFCH22'
         end
         let(:transaction) do
           {
@@ -554,10 +555,10 @@ RSpec.describe SEPA::CreditTransfer do
         end
 
         let(:xml_header) do
-          '<?xml version="1.0" encoding="UTF-8"?>' +
-            "\n<Document xmlns=\"http://www.six-interbank-clearing.com/de/#{format}.xsd\"" +
-            ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"' +
-            " xsi:schemaLocation=\"http://www.six-interbank-clearing.com/de/#{format}.xsd  #{format}.xsd\">\n"
+          '<?xml version="1.0" encoding="UTF-8"?>' \
+            "\n<Document xmlns=\"http://www.six-interbank-clearing.com/de/#{format}.xsd\" " \
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ' \
+            "xsi:schemaLocation=\"http://www.six-interbank-clearing.com/de/#{format}.xsd  #{format}.xsd\">\n"
         end
 
         it 'should return correct header' do

@@ -27,7 +27,7 @@ module SEPA
              .tr('_', '-')
              .tr('&', '+')
              .gsub(/\n+/, ' ')
-             .gsub(/[^a-zA-Z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F ':?,\-(+.)\/]/, '')
+             .gsub(%r{[^a-zA-Z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F ':?,\-(+.)/]}, '')
              .strip
       end
 

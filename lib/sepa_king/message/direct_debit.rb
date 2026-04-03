@@ -30,7 +30,7 @@ module SEPA
           builder.PmtMtd('DD')
           builder.BtchBookg(group[:batch_booking])
           builder.NbOfTxs(transactions.length)
-          builder.CtrlSum('%.2f' % amount_total(transactions))
+          builder.CtrlSum(format_amount(amount_total(transactions)))
           builder.PmtTpInf do
             builder.SvcLvl do
               builder.Cd('SEPA')
@@ -50,19 +50,7 @@ module SEPA
             end
           end
           builder.CdtrAgt do
-            builder.FinInstnId do
-              if group[:account].bic
-                if [PAIN_008_001_08, PAIN_008_001_12].include?(schema_name)
-                  builder.BICFI(group[:account].bic)
-                else
-                  builder.BIC(group[:account].bic)
-                end
-              else
-                builder.Othr do
-                  builder.Id('NOTPROVIDED')
-                end
-              end
-            end
+            build_agent_bic(builder, group[:account].bic, schema_name)
           end
           builder.ChrgBr('SLEV')
           builder.CdtrSchmeId do
@@ -129,7 +117,7 @@ module SEPA
           builder.InstrId(transaction.instruction) if transaction.instruction.present?
           builder.EndToEndId(transaction.reference)
         end
-        builder.InstdAmt('%.2f' % transaction.amount, Ccy: transaction.currency)
+        builder.InstdAmt(format_amount(transaction.amount), Ccy: transaction.currency)
         builder.DrctDbtTx do
           builder.MndtRltdInf do
             builder.MndtId(transaction.mandate_id)
@@ -138,19 +126,7 @@ module SEPA
           end
         end
         builder.DbtrAgt do
-          builder.FinInstnId do
-            if transaction.bic
-              if [PAIN_008_001_08, PAIN_008_001_12].include?(schema_name)
-                builder.BICFI(transaction.bic)
-              else
-                builder.BIC(transaction.bic)
-              end
-            else
-              builder.Othr do
-                builder.Id('NOTPROVIDED')
-              end
-            end
-          end
+          build_agent_bic(builder, transaction.bic, schema_name)
         end
         builder.Dbtr do
           builder.Nm(transaction.name)
@@ -161,24 +137,7 @@ module SEPA
             builder.IBAN(transaction.iban)
           end
         end
-        if transaction.remittance_information || transaction.structured_remittance_information
-          builder.RmtInf do
-            if transaction.structured_remittance_information
-              builder.Strd do
-                builder.CdtrRefInf do
-                  builder.Tp do
-                    builder.CdOrPrtry do
-                      builder.Cd('SCOR')
-                    end
-                  end
-                  builder.Ref(transaction.structured_remittance_information)
-                end
-              end
-            else
-              builder.Ustrd(transaction.remittance_information)
-            end
-          end
-        end
+        build_remittance_information(builder, transaction)
       end
     end
   end
