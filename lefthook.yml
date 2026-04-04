@@ -1,6 +1,7 @@
 pre-commit:
   commands:
     rubocop:
-      run: bundle exec rubocop -A && git add -u
+      glob: "*.rb"
+      run: bundle exec rubocop -A {staged_files} && git add {staged_files}
     rspec:
       run: bundle exec rspec
