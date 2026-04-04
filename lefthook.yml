@@ -1,4 +1,6 @@
 pre-commit:
   commands:
+    rubocop:
+      run: bundle exec rubocop -A && git add -u
     rspec:
       run: bundle exec rspec
