@@ -12,6 +12,7 @@ module SEPA
     validates_inclusion_of :service_level, in: %w[SEPA URGP], allow_nil: true
     validates_length_of :category_purpose, within: 1..4, allow_nil: true
     validates_inclusion_of :charge_bearer, in: CHARGE_BEARERS, allow_nil: true
+    validates_address :creditor_address
 
     validate { |t| t.validate_requested_date_after(Date.today) }
 
@@ -30,7 +31,7 @@ module SEPA
 
       case schema_name
       when PAIN_001_001_03, PAIN_001_001_09, PAIN_001_001_13
-        !self.service_level || (self.service_level == 'SEPA' && currency == 'EUR')
+        iso_service_level_compatible?
       when PAIN_001_002_03
         bic && !bic.empty? && self.service_level == 'SEPA' && currency == 'EUR'
       when PAIN_001_003_03
@@ -38,6 +39,12 @@ module SEPA
       when PAIN_001_001_03_CH_02
         currency == 'CHF'
       end
+    end
+
+    private
+
+    def iso_service_level_compatible?
+      !self.service_level || self.service_level == 'URGP' || (self.service_level == 'SEPA' && currency == 'EUR')
     end
   end
 end

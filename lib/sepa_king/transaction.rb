@@ -6,6 +6,21 @@ module SEPA
     include AttributeInitializer
     extend Converter
 
+    # DSL to declare and validate address fields on subclasses (ISP-compliant).
+    # Each subclass declares only the address it actually uses.
+    def self.validates_address(*fields)
+      fields.each do |field|
+        attr_accessor field
+
+        validate do |t|
+          address = t.public_send(field)
+          next unless address && !address.valid?
+
+          address.errors.each { |error| t.errors.add(field, error.full_message) }
+        end
+      end
+    end
+
     # Convention SEPA: 1999-01-01 signifies "execute as soon as possible" (ASAP).
     # When no specific date is requested, this sentinel value tells the bank
     # to process the payment at the earliest opportunity.
@@ -21,13 +36,15 @@ module SEPA
                   :requested_date,
                   :batch_booking,
                   :currency,
-                  :debtor_address,
-                  :creditor_address,
                   :structured_remittance_information,
                   :uetr,
-                  :instruction_priority
+                  :instruction_priority,
+                  :purpose_code,
+                  :ultimate_debtor_name,
+                  :ultimate_creditor_name
 
-    convert :name, :instruction, :reference, :remittance_information, :structured_remittance_information, to: :text
+    convert :name, :instruction, :reference, :remittance_information, :structured_remittance_information,
+            :purpose_code, :ultimate_debtor_name, :ultimate_creditor_name, to: :text
     convert :amount, to: :decimal
 
     validates_length_of :name, within: 1..70
@@ -37,6 +54,9 @@ module SEPA
     validates_length_of :reference, within: 1..35, allow_nil: true
     validates_length_of :remittance_information, within: 1..140, allow_nil: true
     validates_length_of :structured_remittance_information, within: 1..35, allow_nil: true
+    validates_length_of :purpose_code, within: 1..4, allow_nil: true
+    validates_length_of :ultimate_debtor_name, within: 1..70, allow_nil: true
+    validates_length_of :ultimate_creditor_name, within: 1..70, allow_nil: true
     validates_numericality_of :amount, greater_than: 0, less_than_or_equal_to: 999_999_999.99
     validates_presence_of :requested_date
 
@@ -48,17 +68,6 @@ module SEPA
     validate do |t|
       if t.remittance_information && t.structured_remittance_information
         t.errors.add(:base, 'remittance_information and structured_remittance_information are mutually exclusive')
-      end
-    end
-
-    validate do |t|
-      %i[debtor_address creditor_address].each do |field|
-        address = t.public_send(field)
-        next unless address && !address.valid?
-
-        address.errors.each do |error|
-          t.errors.add(field, error.full_message)
-        end
       end
     end
 

@@ -87,6 +87,7 @@ module SEPA
         builder.Amt do
           builder.InstdAmt(format_amount(transaction.amount), Ccy: transaction.currency)
         end
+        build_ultimate_party(builder, :UltmtDbtr, transaction.ultimate_debtor_name)
         if transaction.bic
           builder.CdtrAgt do
             build_agent_bic(builder, transaction.bic, schema_name, fallback: false)
@@ -97,6 +98,8 @@ module SEPA
           build_postal_address(builder, transaction.creditor_address) if transaction.creditor_address
         end
         build_iban_account(builder, :CdtrAcct, transaction.iban)
+        build_ultimate_party(builder, :UltmtCdtr, transaction.ultimate_creditor_name)
+        build_purpose(builder, transaction.purpose_code)
         build_remittance_information(builder, transaction)
       end
     end

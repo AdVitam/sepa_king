@@ -6,6 +6,10 @@
 - [Direct Debit (pain.008)](#direct-debit-pain008)
 - [Addresses](#addresses)
 - [Charge Bearer](#charge-bearer)
+- [UETR](#uetr-unique-end-to-end-transaction-reference)
+- [Instruction Priority](#instruction-priority)
+- [Purpose Code](#purpose-code)
+- [Ultimate Parties](#ultimate-parties)
 - [Mandate Amendments](#mandate-amendments)
 - [Validators](#validators)
 - [Supported Schemas](#supported-schemas)
@@ -21,6 +25,10 @@ sct = SEPA::CreditTransfer.new(
   name: 'Debtor Inc.',             # Required, max 70 chars
   iban: 'DE87200500001234567890',  # Required
   bic:  'BANKDEFFXXX',            # Optional, 8 or 11 chars
+
+  # Optional: organization ID emitted in InitgPty/Id/OrgId/Othr/Id
+  # Some banks require this for bulk payment authorization
+  initiating_party_identifier: 'DE98ZZZ09999999999',
 
   # Optional: postal address of the debtor at PmtInf level
   # Recommended for cross-border payments
@@ -53,8 +61,11 @@ sct.add_transaction(
   batch_booking:          true,
   service_level:          'SEPA',              # 'SEPA' or 'URGP' (default: 'SEPA' for EUR)
   category_purpose:       'SALA',              # max 4 chars (e.g., SALA, INST)
+  purpose_code:           'SALA',              # max 4 chars, transaction-level purpose (e.g., SALA, PENS, SSBE)
   charge_bearer:          'SLEV',              # see Charge Bearer section
-  instruction_priority:   'HIGH',              # 'HIGH' or 'NORM'
+  instruction_priority:   'HIGH',              # 'HIGH' or 'NORM' (see Instruction Priority section)
+  uetr:                   '550e8400-e29b-41d4-a716-446655440000', # UUIDv4, .09/.13 only (see UETR section)
+  ultimate_creditor_name: 'Final Beneficiary', # max 70 chars, when beneficiary differs from account holder
 
   # Optional: postal address of the creditor (required for cross-border)
   creditor_address: SEPA::CreditorAddress.new(
@@ -117,8 +128,12 @@ sdd.add_transaction(
   remittance_information: 'Thank you!',
   requested_date:         Date.new(2024, 9, 5),
   batch_booking:          true,
-  instruction_priority:   'HIGH',
+  instruction_priority:   'HIGH',              # 'HIGH' or 'NORM' (see Instruction Priority section)
   charge_bearer:          'SLEV',              # see Charge Bearer section
+  purpose_code:           'SALA',              # max 4 chars, transaction-level purpose
+  uetr:                   '550e8400-e29b-41d4-a716-446655440000', # UUIDv4, .08/.12 only (see UETR section)
+  ultimate_debtor_name:   'Final Payer',       # max 70 chars, when payer differs from account holder
+  ultimate_creditor_name: 'Final Beneficiary', # max 70 chars
 
   # Local instrument: 'CORE' (default), 'B2B', or 'COR1' (deprecated)
   local_instrument: 'CORE',
@@ -215,6 +230,55 @@ The `charge_bearer` attribute controls who bears the transaction charges.
 **Default behavior** (when `charge_bearer` is not set):
 - Credit Transfer: emits `SLEV` when `service_level` is set, nothing otherwise
 - Direct Debit: always emits `SLEV`
+
+---
+
+## UETR (Unique End-to-end Transaction Reference)
+
+The `uetr` attribute is a UUIDv4 identifier used to track payments across the entire chain.
+
+- **Format**: UUIDv4 (lowercase hex, e.g., `550e8400-e29b-41d4-a716-446655440000`)
+- **Credit Transfer**: supported on `pain.001.001.09` and `pain.001.001.13` only
+- **Direct Debit**: supported on `pain.008.001.08` and `pain.008.001.12` only
+- Using UETR with older schemas raises `SEPA::SchemaValidationError`
+
+---
+
+## Instruction Priority
+
+The `instruction_priority` attribute controls processing urgency.
+
+| Value | Meaning |
+|-------|---------|
+| `HIGH` | High priority / urgent processing |
+| `NORM` | Normal priority |
+
+- Emitted in `PmtTpInf/InstrPrty` at the PmtInf level
+- **EPC schemas** (`pain.001.002.03`, `pain.001.003.03`, `pain.008.002.02`, `pain.008.003.02`) do **not** support instruction priority — using it with these schemas raises an error
+
+---
+
+## Purpose Code
+
+The `purpose_code` attribute classifies the payment at the **transaction level** (`Purp/Cd`). This is different from `category_purpose` which is at the `PmtTpInf` level.
+
+Common values: `SALA` (salary), `PENS` (pension), `SSBE` (social security), `TAXS` (tax), `SUPP` (supplier payment).
+
+- **Max length**: 4 characters
+- Supported on all schemas
+
+---
+
+## Ultimate Parties
+
+When the actual payer or beneficiary differs from the account holder, use ultimate party fields:
+
+| Attribute | Message type | XML element | Max length |
+|-----------|-------------|-------------|------------|
+| `ultimate_creditor_name` | Credit Transfer | `UltmtCdtr/Nm` | 70 |
+| `ultimate_debtor_name` | Direct Debit | `UltmtDbtr/Nm` | 70 |
+
+Both `ultimate_creditor_name` and `ultimate_debtor_name` are available on all transaction types (CT and DD) as the XSD supports both at the transaction level.
 
 ---
 

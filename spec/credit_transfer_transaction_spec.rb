@@ -44,6 +44,12 @@ RSpec.describe SEPA::CreditTransferTransaction do
         expect(SEPA::CreditTransferTransaction.new(bic: 'SPUEDE2UXXX', currency: 'CHF')).to be_schema_compatible('pain.001.001.03')
         expect(SEPA::CreditTransferTransaction.new(bic: nil)).to be_schema_compatible('pain.001.003.03')
       end
+
+      it 'accepts URGP service level' do
+        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_schema_compatible('pain.001.001.03')
+        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_schema_compatible('pain.001.001.09')
+        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_schema_compatible('pain.001.001.13')
+      end
     end
 
     context 'for pain.001.001.03.ch.02' do
@@ -155,6 +161,26 @@ RSpec.describe SEPA::CreditTransferTransaction do
     end
   end
 
+  context 'Creditor Address' do
+    it 'accepts valid address_line' do
+      expect(SEPA::CreditTransferTransaction).to accept(SEPA::CreditorAddress.new(
+                                                          country_code: 'CH',
+                                                          address_line1: 'Musterstrasse 123',
+                                                          address_line2: '1234 Musterstadt'
+                                                        ), for: :creditor_address)
+    end
+
+    it 'accepts valid structured address' do
+      expect(SEPA::CreditTransferTransaction).to accept(SEPA::CreditorAddress.new(
+                                                          country_code: 'CH',
+                                                          street_name: 'Mustergasse',
+                                                          building_number: '123',
+                                                          post_code: '1234',
+                                                          town_name: 'Musterstadt'
+                                                        ), for: :creditor_address)
+    end
+  end
+
   context 'Category Purpose' do
     it 'allows valid value' do
       expect(SEPA::CreditTransferTransaction).to accept(nil, 'SALA', 'INST', 'X' * 4, for: :category_purpose)
@@ -162,6 +188,36 @@ RSpec.describe SEPA::CreditTransferTransaction do
 
     it 'does not allow invalid value' do
       expect(SEPA::CreditTransferTransaction).not_to accept('', 'X' * 5, for: :category_purpose)
+    end
+  end
+
+  context 'Purpose Code' do
+    it 'allows valid value' do
+      expect(SEPA::CreditTransferTransaction).to accept(nil, 'SALA', 'PENS', 'X' * 4, for: :purpose_code)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::CreditTransferTransaction).not_to accept('', 'X' * 5, for: :purpose_code)
+    end
+  end
+
+  context 'Ultimate Creditor Name' do
+    it 'allows valid value' do
+      expect(SEPA::CreditTransferTransaction).to accept(nil, 'Ultimate Corp', 'X' * 70, for: :ultimate_creditor_name)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::CreditTransferTransaction).not_to accept('', 'X' * 71, for: :ultimate_creditor_name)
+    end
+  end
+
+  context 'Ultimate Debtor Name' do
+    it 'allows valid value' do
+      expect(SEPA::CreditTransferTransaction).to accept(nil, 'Ultimate Debtor', 'X' * 70, for: :ultimate_debtor_name)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::CreditTransferTransaction).not_to accept('', 'X' * 71, for: :ultimate_debtor_name)
     end
   end
 end
