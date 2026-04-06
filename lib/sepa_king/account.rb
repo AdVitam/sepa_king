@@ -24,5 +24,18 @@ module SEPA
     end
 
     def initiating_party_id(builder); end
+
+    protected
+
+    def build_organisation_id(builder, identifier, scheme: nil)
+      builder.Id do
+        builder.OrgId do
+          builder.Othr do
+            builder.Id(identifier)
+            builder.SchmeNm { builder.Prtry(scheme) } if scheme
+          end
+        end
+      end
+    end
   end
 end

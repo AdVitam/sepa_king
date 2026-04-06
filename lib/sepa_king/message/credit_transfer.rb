@@ -97,6 +97,8 @@ module SEPA
           build_postal_address(builder, transaction.creditor_address) if transaction.creditor_address
         end
         build_iban_account(builder, :CdtrAcct, transaction.iban)
+        build_ultimate_party(builder, :UltmtCdtr, transaction.ultimate_creditor_name)
+        build_purpose(builder, transaction.purpose_code)
         build_remittance_information(builder, transaction)
       end
     end

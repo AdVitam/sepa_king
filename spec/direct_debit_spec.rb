@@ -1017,4 +1017,96 @@ RSpec.describe SEPA::DirectDebit do
       expect { subject.to_xml(SEPA::PAIN_008_001_02) }.to raise_error(SEPA::SchemaValidationError, /Incompatible/)
     end
   end
+
+  describe 'purpose_code' do
+    subject do
+      sdd = direct_debit
+      sdd.add_transaction direct_debit_transaction(purpose_code: 'SALA')
+      sdd
+    end
+
+    it 'validates against pain.008.001.02' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_02)).to validate_against('pain.008.001.02.xsd')
+    end
+
+    it 'validates against pain.008.001.08' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_08)).to validate_against('pain.008.001.08.xsd')
+    end
+
+    it 'validates against pain.008.001.12' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_12)).to validate_against('pain.008.001.12.xsd')
+    end
+
+    it 'contains Purp element' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_02))
+        .to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf/Purp/Cd', 'SALA')
+    end
+  end
+
+  describe 'ultimate_debtor_name' do
+    subject do
+      sdd = direct_debit
+      sdd.add_transaction direct_debit_transaction(ultimate_debtor_name: 'Ultimate Debtor GmbH')
+      sdd
+    end
+
+    it 'validates against pain.008.001.02' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_02)).to validate_against('pain.008.001.02.xsd')
+    end
+
+    it 'validates against pain.008.001.08' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_08)).to validate_against('pain.008.001.08.xsd')
+    end
+
+    it 'validates against pain.008.001.12' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_12)).to validate_against('pain.008.001.12.xsd')
+    end
+
+    it 'contains UltmtDbtr element' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_02))
+        .to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf/UltmtDbtr/Nm', 'Ultimate Debtor GmbH')
+    end
+  end
+
+  describe 'ultimate_creditor_name' do
+    subject do
+      sdd = direct_debit
+      sdd.add_transaction direct_debit_transaction(ultimate_creditor_name: 'Ultimate Creditor AG')
+      sdd
+    end
+
+    it 'validates against pain.008.001.02' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_02)).to validate_against('pain.008.001.02.xsd')
+    end
+
+    it 'validates against pain.008.001.08' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_08)).to validate_against('pain.008.001.08.xsd')
+    end
+
+    it 'contains UltmtCdtr element' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_02))
+        .to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf/UltmtCdtr/Nm', 'Ultimate Creditor AG')
+    end
+  end
+
+  describe 'structured_remittance_information' do
+    subject do
+      sdd = direct_debit
+      sdd.add_transaction direct_debit_transaction(
+        remittance_information: nil,
+        structured_remittance_information: 'RF712348231'
+      )
+      sdd
+    end
+
+    it 'validates against pain.008.001.02' do
+      expect(subject.to_xml(SEPA::PAIN_008_001_02)).to validate_against('pain.008.001.02.xsd')
+    end
+
+    it 'contains Strd/CdtrRefInf structure' do
+      xml = subject.to_xml(SEPA::PAIN_008_001_02)
+      expect(xml).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf/RmtInf/Strd/CdtrRefInf/Tp/CdOrPrtry/Cd', 'SCOR')
+      expect(xml).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf/RmtInf/Strd/CdtrRefInf/Ref', 'RF712348231')
+    end
+  end
 end

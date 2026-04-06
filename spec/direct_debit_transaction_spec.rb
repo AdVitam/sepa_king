@@ -105,6 +105,26 @@ RSpec.describe SEPA::DirectDebitTransaction do
     end
   end
 
+  context 'Debtor Address' do
+    it 'accepts valid address_line' do
+      expect(SEPA::DirectDebitTransaction).to accept(SEPA::DebtorAddress.new(
+                                                       country_code: 'CH',
+                                                       address_line1: 'Musterstrasse 123',
+                                                       address_line2: '1234 Musterstadt'
+                                                     ), for: :debtor_address)
+    end
+
+    it 'accepts valid structured address' do
+      expect(SEPA::DirectDebitTransaction).to accept(SEPA::DebtorAddress.new(
+                                                       country_code: 'CH',
+                                                       street_name: 'Mustergasse',
+                                                       building_number: '123',
+                                                       post_code: '1234',
+                                                       town_name: 'Musterstadt'
+                                                     ), for: :debtor_address)
+    end
+  end
+
   context 'Original Debtor Account' do
     it 'accepts valid IBAN' do
       expect(SEPA::DirectDebitTransaction).to accept(nil, 'DE21500500009876543210', for: :original_debtor_account)
@@ -208,6 +228,36 @@ RSpec.describe SEPA::DirectDebitTransaction do
 
     it 'does not accept invalid value' do
       expect(SEPA::DirectDebitTransaction).not_to accept(nil, '2010-12-01', Date.today + 1, for: :mandate_date_of_signature)
+    end
+  end
+
+  context 'Purpose Code' do
+    it 'allows valid value' do
+      expect(SEPA::DirectDebitTransaction).to accept(nil, 'SALA', 'PENS', 'X' * 4, for: :purpose_code)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::DirectDebitTransaction).not_to accept('', 'X' * 5, for: :purpose_code)
+    end
+  end
+
+  context 'Ultimate Debtor Name' do
+    it 'allows valid value' do
+      expect(SEPA::DirectDebitTransaction).to accept(nil, 'Ultimate Debtor', 'X' * 70, for: :ultimate_debtor_name)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::DirectDebitTransaction).not_to accept('', 'X' * 71, for: :ultimate_debtor_name)
+    end
+  end
+
+  context 'Ultimate Creditor Name' do
+    it 'allows valid value' do
+      expect(SEPA::DirectDebitTransaction).to accept(nil, 'Ultimate Creditor', 'X' * 70, for: :ultimate_creditor_name)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::DirectDebitTransaction).not_to accept('', 'X' * 71, for: :ultimate_creditor_name)
     end
   end
 

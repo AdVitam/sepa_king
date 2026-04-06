@@ -7,13 +7,7 @@ module SEPA
     validates_with CreditorIdentifierValidator, message: 'is invalid'
 
     def initiating_party_id(builder)
-      builder.Id do
-        builder.OrgId do
-          builder.Othr do
-            builder.Id(creditor_identifier)
-          end
-        end
-      end
+      build_organisation_id(builder, creditor_identifier)
     end
   end
 end

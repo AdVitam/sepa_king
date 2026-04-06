@@ -890,5 +890,153 @@ RSpec.describe SEPA::CreditTransfer do
         expect { subject.to_xml(SEPA::PAIN_001_001_03) }.to raise_error(SEPA::SchemaValidationError, /Incompatible/)
       end
     end
+
+    context 'with purpose_code' do
+      subject do
+        sct = credit_transfer
+        sct.add_transaction credit_transfer_transaction(purpose_code: 'SALA')
+        sct
+      end
+
+      it 'validates against pain.001.001.03' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03)).to validate_against('pain.001.001.03.xsd')
+      end
+
+      it 'validates against pain.001.001.09' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_09)).to validate_against('pain.001.001.09.xsd')
+      end
+
+      it 'validates against pain.001.001.13' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_13)).to validate_against('pain.001.001.13.xsd')
+      end
+
+      it 'contains Purp element' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03))
+          .to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/Purp/Cd', 'SALA')
+      end
+    end
+
+    context 'with ultimate_creditor_name' do
+      subject do
+        sct = credit_transfer
+        sct.add_transaction credit_transfer_transaction(ultimate_creditor_name: 'Ultimate Corp')
+        sct
+      end
+
+      it 'validates against pain.001.001.03' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03)).to validate_against('pain.001.001.03.xsd')
+      end
+
+      it 'validates against pain.001.001.09' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_09)).to validate_against('pain.001.001.09.xsd')
+      end
+
+      it 'validates against pain.001.001.13' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_13)).to validate_against('pain.001.001.13.xsd')
+      end
+
+      it 'contains UltmtCdtr element' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03))
+          .to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/UltmtCdtr/Nm', 'Ultimate Corp')
+      end
+    end
+
+    context 'with initiating_party_identifier' do
+      subject do
+        sct = SEPA::CreditTransfer.new(name: 'Schuldner GmbH',
+                                       bic: 'BANKDEFFXXX',
+                                       iban: 'DE87200500001234567890',
+                                       initiating_party_identifier: 'DE98ZZZ09999999999')
+        sct.add_transaction credit_transfer_transaction
+        sct
+      end
+
+      it 'validates against pain.001.001.03' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03)).to validate_against('pain.001.001.03.xsd')
+      end
+
+      it 'validates against pain.001.001.09' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_09)).to validate_against('pain.001.001.09.xsd')
+      end
+
+      it 'validates against pain.001.001.13' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_13)).to validate_against('pain.001.001.13.xsd')
+      end
+
+      it 'contains InitgPty/Id element' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03))
+          .to have_xml('//Document/CstmrCdtTrfInitn/GrpHdr/InitgPty/Id/OrgId/Othr/Id', 'DE98ZZZ09999999999')
+      end
+    end
+
+    context 'with URGP service level' do
+      subject do
+        sct = credit_transfer
+        sct.add_transaction credit_transfer_transaction(service_level: 'URGP')
+        sct
+      end
+
+      it 'validates against pain.001.001.03' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03)).to validate_against('pain.001.001.03.xsd')
+      end
+
+      it 'validates against pain.001.001.09' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_09)).to validate_against('pain.001.001.09.xsd')
+      end
+
+      it 'validates against pain.001.001.13' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_13)).to validate_against('pain.001.001.13.xsd')
+      end
+
+      it 'contains SvcLvl with URGP' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03))
+          .to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/PmtTpInf/SvcLvl/Cd', 'URGP')
+      end
+    end
+
+    context 'with structured_remittance_information' do
+      subject do
+        sct = credit_transfer
+        sct.add_transaction credit_transfer_transaction(
+          remittance_information: nil,
+          structured_remittance_information: 'RF712348231'
+        )
+        sct
+      end
+
+      it 'validates against pain.001.001.03' do
+        expect(subject.to_xml(SEPA::PAIN_001_001_03)).to validate_against('pain.001.001.03.xsd')
+      end
+
+      it 'contains Strd/CdtrRefInf structure' do
+        xml = subject.to_xml(SEPA::PAIN_001_001_03)
+        expect(xml).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/RmtInf/Strd/CdtrRefInf/Tp/CdOrPrtry/Cd', 'SCOR')
+        expect(xml).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/CdtTrfTxInf/RmtInf/Strd/CdtrRefInf/Ref', 'RF712348231')
+      end
+    end
+
+    context 'with creditor without BIC' do
+      subject do
+        sct = credit_transfer
+        sct.add_transaction credit_transfer_transaction(bic: nil)
+        sct
+      end
+
+      it 'does not emit NOTPROVIDED for creditor agent' do
+        xml = subject.to_xml(SEPA::PAIN_001_001_03)
+        doc = Nokogiri::XML(xml)
+        doc.remove_namespaces!
+        notprovided = doc.at_xpath('//CdtTrfTxInf/CdtrAgt/FinInstnId/Othr/Id')
+        expect(notprovided).to be_nil
+      end
+
+      it 'does not emit CdtrAgt at all' do
+        xml = subject.to_xml(SEPA::PAIN_001_001_03)
+        doc = Nokogiri::XML(xml)
+        doc.remove_namespaces!
+        cdtr_agt = doc.at_xpath('//CdtTrfTxInf/CdtrAgt')
+        expect(cdtr_agt).to be_nil
+      end
+    end
   end
 end

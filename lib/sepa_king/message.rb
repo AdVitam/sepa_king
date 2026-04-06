@@ -272,6 +272,18 @@ module SEPA
       end
     end
 
+    def build_ultimate_party(builder, tag, name)
+      return unless name
+
+      builder.__send__(tag) { builder.Nm(name) }
+    end
+
+    def build_purpose(builder, purpose_code)
+      return unless purpose_code
+
+      builder.Purp { builder.Cd(purpose_code) }
+    end
+
     def build_payment_identification(builder, transaction)
       builder.PmtId do
         builder.InstrId(transaction.instruction) if transaction.instruction && !transaction.instruction.empty?

@@ -133,6 +133,7 @@ module SEPA
             build_amendment_informations(builder, transaction) if transaction.amendment_informations?
           end
         end
+        build_ultimate_party(builder, :UltmtCdtr, transaction.ultimate_creditor_name)
         builder.DbtrAgt do
           build_agent_bic(builder, transaction.bic, schema_name)
         end
@@ -141,6 +142,8 @@ module SEPA
           build_postal_address(builder, transaction.debtor_address) if transaction.debtor_address
         end
         build_iban_account(builder, :DbtrAcct, transaction.iban)
+        build_ultimate_party(builder, :UltmtDbtr, transaction.ultimate_debtor_name)
+        build_purpose(builder, transaction.purpose_code)
         build_remittance_information(builder, transaction)
       end
     end

@@ -24,6 +24,7 @@ module SEPA
     validates_inclusion_of :local_instrument, in: LOCAL_INSTRUMENTS
     validates_inclusion_of :sequence_type, in: SEQUENCE_TYPES
     validates_inclusion_of :charge_bearer, in: CHARGE_BEARERS, allow_nil: true
+    validates_address :debtor_address
     validate { |t| t.validate_requested_date_after(Date.today.next) }
 
     validate do |t|
