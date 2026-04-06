@@ -96,7 +96,9 @@ module SEPA
         errors.add(:regulatory_reportings, "#{prefix} amount must have :value and :currency")
         return
       end
-      errors.add(:regulatory_reportings, "#{prefix} amount value must be numeric") unless amount[:value].is_a?(Numeric)
+      unless amount[:value].is_a?(Integer) || amount[:value].is_a?(Float) || amount[:value].is_a?(BigDecimal)
+        errors.add(:regulatory_reportings, "#{prefix} amount value must be numeric")
+      end
       errors.add(:regulatory_reportings, "#{prefix} amount currency invalid") unless amount[:currency].to_s.match?(CURRENCY_CODE_REGEX)
     end
 

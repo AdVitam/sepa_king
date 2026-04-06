@@ -102,11 +102,24 @@ module SEPA
         schema_allows_field?(regulatory_reportings&.any?, REGULATORY_REPORTING_SCHEMAS, schema_name)
     end
 
-    # v13 RegulatoryReporting10 requires DbtCdtRptgInd (indicator)
+    # v13 RegulatoryReporting10 requires DbtCdtRptgInd (indicator) and supports type_proprietary.
+    # v03/v09 StructuredRegulatoryReporting3 uses plain-text Tp, so type_proprietary is incompatible.
     def regulatory_reportings_compatible?(schema_name)
-      return true unless regulatory_reportings&.any? && schema_name == PAIN_001_001_13
+      return true unless regulatory_reportings&.any?
 
-      regulatory_reportings.all? { |r| r.is_a?(Hash) && r[:indicator] }
+      regulatory_reportings.all? { |r| regulatory_reporting_schema_ok?(r, schema_name) }
+    end
+
+    def regulatory_reporting_schema_ok?(reporting, schema_name)
+      return false unless reporting.is_a?(Hash)
+      return false if schema_name == PAIN_001_001_13 && !reporting[:indicator]
+      return false if schema_name != PAIN_001_001_13 && type_proprietary?(reporting)
+
+      true
+    end
+
+    def type_proprietary?(reporting)
+      reporting[:details]&.any? { |d| d.is_a?(Hash) && d[:type_proprietary] }
     end
 
     def schema_allows_field?(value, allowed_schemas, schema_name)

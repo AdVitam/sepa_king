@@ -88,7 +88,8 @@ module SEPA
 
     def optional_fields_schema_compatible?(schema_name)
       !(uetr && !UETR_SCHEMAS.include?(schema_name)) &&
-        !(agent_lei && !LEI_SCHEMAS.include?(schema_name))
+        !(agent_lei && !LEI_SCHEMAS.include?(schema_name)) &&
+        !(creditor_account&.agent_lei && !LEI_SCHEMAS.include?(schema_name))
     end
 
     def epc_v2_compatible?
