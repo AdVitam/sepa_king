@@ -468,6 +468,102 @@ RSpec.describe SEPA::CreditTransfer do
         end
       end
 
+      context 'with debtor address on account (F1)' do
+        subject do
+          credit_transfer_with_address.add_transaction(credit_transfer_transaction)
+          credit_transfer_with_address
+        end
+
+        let(:credit_transfer_with_address) do
+          SEPA::CreditTransfer.new(
+            name: 'Schuldner GmbH',
+            bic: 'BANKDEFFXXX',
+            iban: 'DE87200500001234567890',
+            address: SEPA::Address.new(country_code: 'DE', town_name: 'Berlin', post_code: '10115', street_name: 'Hauptstrasse')
+          )
+        end
+
+        it 'validates against pain.001.001.03' do
+          expect(subject.to_xml('pain.001.001.03')).to validate_against('pain.001.001.03.xsd')
+        end
+
+        it 'validates against pain.001.001.09' do
+          expect(subject.to_xml(SEPA::PAIN_001_001_09)).to validate_against('pain.001.001.09.xsd')
+        end
+
+        it 'validates against pain.001.001.13' do
+          expect(subject.to_xml(SEPA::PAIN_001_001_13)).to validate_against('pain.001.001.13.xsd')
+        end
+
+        it 'contains debtor PstlAdr' do
+          expect(subject.to_xml).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/Dbtr/PstlAdr/TwnNm', 'Berlin')
+        end
+
+        it 'contains debtor street name' do
+          expect(subject.to_xml).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/Dbtr/PstlAdr/StrtNm', 'Hauptstrasse')
+        end
+      end
+
+      context 'with charge_bearer on transaction (F3)' do
+        subject do
+          sct = credit_transfer
+          sct.add_transaction(credit_transfer_transaction.merge(charge_bearer: 'SHAR', service_level: nil))
+          sct
+        end
+
+        it 'validates against pain.001.001.03' do
+          expect(subject.to_xml('pain.001.001.03')).to validate_against('pain.001.001.03.xsd')
+        end
+
+        it 'validates against pain.001.001.09' do
+          expect(subject.to_xml(SEPA::PAIN_001_001_09)).to validate_against('pain.001.001.09.xsd')
+        end
+
+        it 'validates against pain.001.001.13' do
+          expect(subject.to_xml(SEPA::PAIN_001_001_13)).to validate_against('pain.001.001.13.xsd')
+        end
+
+        it 'contains ChrgBr with SHAR' do
+          expect(subject.to_xml).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/ChrgBr', 'SHAR')
+        end
+
+        it 'fails for EPC schema pain.001.002.03' do
+          expect { subject.to_xml(SEPA::PAIN_001_002_03) }.to raise_error(SEPA::Error, /Incompatible with schema/)
+        end
+
+        it 'fails for EPC schema pain.001.003.03' do
+          expect { subject.to_xml(SEPA::PAIN_001_003_03) }.to raise_error(SEPA::Error, /Incompatible with schema/)
+        end
+      end
+
+      context 'with charge_bearer DEBT' do
+        subject do
+          sct = credit_transfer
+          sct.add_transaction(credit_transfer_transaction.merge(charge_bearer: 'DEBT', service_level: nil))
+          sct
+        end
+
+        it 'validates against pain.001.001.03' do
+          expect(subject.to_xml('pain.001.001.03')).to validate_against('pain.001.001.03.xsd')
+        end
+
+        it 'contains ChrgBr with DEBT' do
+          expect(subject.to_xml).to have_xml('//Document/CstmrCdtTrfInitn/PmtInf/ChrgBr', 'DEBT')
+        end
+      end
+
+      context 'with charge_bearer SLEV on EPC schema' do
+        subject do
+          sct = credit_transfer
+          sct.add_transaction(credit_transfer_transaction.merge(charge_bearer: 'SLEV'))
+          sct
+        end
+
+        it 'validates against pain.001.002.03' do
+          expect(subject.to_xml(SEPA::PAIN_001_002_03)).to validate_against('pain.001.002.03.xsd')
+        end
+      end
+
       context 'with instruction given' do
         subject do
           sct = credit_transfer

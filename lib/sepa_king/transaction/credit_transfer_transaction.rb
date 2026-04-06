@@ -3,10 +3,15 @@
 module SEPA
   class CreditTransferTransaction < Transaction
     attr_accessor :service_level,
-                  :category_purpose
+                  :category_purpose,
+                  :charge_bearer
+
+    CHARGE_BEARERS = %w[DEBT CRED SHAR SLEV].freeze
+    EPC_ONLY_SCHEMAS = %w[pain.001.002.03 pain.001.003.03].freeze
 
     validates_inclusion_of :service_level, in: %w[SEPA URGP], allow_nil: true
     validates_length_of :category_purpose, within: 1..4, allow_nil: true
+    validates_inclusion_of :charge_bearer, in: CHARGE_BEARERS, allow_nil: true
 
     validate { |t| t.validate_requested_date_after(Date.today) }
 
@@ -21,6 +26,7 @@ module SEPA
     # at add_transaction time, so a nil check is sufficient here.
     def schema_compatible?(schema_name)
       return false if uetr && !UETR_SCHEMAS.include?(schema_name)
+      return false if charge_bearer && charge_bearer != 'SLEV' && EPC_ONLY_SCHEMAS.include?(schema_name)
 
       case schema_name
       when PAIN_001_001_03, PAIN_001_001_09, PAIN_001_001_13

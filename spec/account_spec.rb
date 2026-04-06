@@ -40,4 +40,36 @@ RSpec.describe SEPA::Account do
       expect(SEPA::Account).not_to accept('', 'invalid', for: :bic)
     end
   end
+
+  describe :address do
+    it 'accepts a valid address' do
+      account = SEPA::Account.new(
+        name: 'Test GmbH',
+        iban: 'DE87200500001234567890',
+        bic: 'BANKDEFFXXX',
+        address: SEPA::Address.new(country_code: 'DE', town_name: 'Berlin', post_code: '10115')
+      )
+      expect(account).to be_valid
+    end
+
+    it 'accepts nil address' do
+      account = SEPA::Account.new(
+        name: 'Test GmbH',
+        iban: 'DE87200500001234567890',
+        bic: 'BANKDEFFXXX'
+      )
+      expect(account).to be_valid
+    end
+
+    it 'propagates address validation errors' do
+      account = SEPA::Account.new(
+        name: 'Test GmbH',
+        iban: 'DE87200500001234567890',
+        bic: 'BANKDEFFXXX',
+        address: SEPA::Address.new(country_code: 'INVALID')
+      )
+      expect(account).not_to be_valid
+      expect(account.errors[:address]).not_to be_empty
+    end
+  end
 end

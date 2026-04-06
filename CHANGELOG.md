@@ -3,6 +3,15 @@
 This project is an [AdVitam](https://github.com/AdVitam) fork of
 [salesking/sepa_king](https://github.com/salesking/sepa_king).
 
+## [Unreleased]
+
+### Added
+
+- Account-level postal address support for Credit Transfer (debtor) and Direct Debit (creditor)
+- Flexible charge bearer (`charge_bearer` attribute) with support for DEBT, CRED, SHAR, SLEV
+- Original mandate ID support in amendment information (`original_mandate_id`)
+- SCT Inst (instant payment) test coverage
+
 ## [0.15.0] - 2026-04-03
 
 ### Added

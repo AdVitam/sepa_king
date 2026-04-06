@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module SEPA
-  CreditTransferGroup = Data.define(:requested_date, :batch_booking, :service_level, :category_purpose, :instruction_priority)
+  CreditTransferGroup = Data.define(:requested_date, :batch_booking, :service_level, :category_purpose, :instruction_priority, :charge_bearer)
 
   class CreditTransfer < Message
     self.account_class = DebtorAccount
@@ -18,7 +18,8 @@ module SEPA
         batch_booking: transaction.batch_booking,
         service_level: transaction.service_level,
         category_purpose: transaction.category_purpose,
-        instruction_priority: transaction.instruction_priority
+        instruction_priority: transaction.instruction_priority,
+        charge_bearer: transaction.charge_bearer
       )
     end
 
@@ -33,7 +34,8 @@ module SEPA
           build_payment_type_information(builder, group)
           build_requested_execution_date(builder, group, schema_name)
           build_debtor_info(builder, schema_name)
-          builder.ChrgBr('SLEV') if group.service_level
+          charge_bearer = group.charge_bearer || (group.service_level ? 'SLEV' : nil)
+          builder.ChrgBr(charge_bearer) if charge_bearer
 
           transactions.each { |transaction| build_transaction(builder, transaction, schema_name) }
         end
@@ -71,6 +73,7 @@ module SEPA
     def build_debtor_info(builder, schema_name)
       builder.Dbtr do
         builder.Nm(account.name)
+        build_postal_address(builder, account.address) if account.address
       end
       build_iban_account(builder, :DbtrAcct, account.iban)
       builder.DbtrAgt do
