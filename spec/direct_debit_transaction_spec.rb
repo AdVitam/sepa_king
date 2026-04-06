@@ -115,6 +115,58 @@ RSpec.describe SEPA::DirectDebitTransaction do
     end
   end
 
+  context 'Charge Bearer' do
+    it 'allows valid value' do
+      expect(SEPA::DirectDebitTransaction).to accept(nil, 'DEBT', 'CRED', 'SHAR', 'SLEV', for: :charge_bearer)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::DirectDebitTransaction).not_to accept('', 'INVALID', 'slev', for: :charge_bearer)
+    end
+  end
+
+  context 'Charge Bearer schema compatibility' do
+    it 'rejects non-SLEV for pain.008.002.02' do
+      expect(SEPA::DirectDebitTransaction.new(bic: 'SPUEDE2UXXX', local_instrument: 'CORE', charge_bearer: 'SHAR'))
+        .not_to be_schema_compatible('pain.008.002.02')
+    end
+
+    it 'rejects non-SLEV for pain.008.003.02' do
+      expect(SEPA::DirectDebitTransaction.new(charge_bearer: 'DEBT'))
+        .not_to be_schema_compatible('pain.008.003.02')
+    end
+
+    it 'accepts SLEV for pain.008.002.02' do
+      expect(SEPA::DirectDebitTransaction.new(bic: 'SPUEDE2UXXX', local_instrument: 'CORE', charge_bearer: 'SLEV'))
+        .to be_schema_compatible('pain.008.002.02')
+    end
+
+    it 'accepts any for pain.008.001.02' do
+      expect(SEPA::DirectDebitTransaction.new(charge_bearer: 'SHAR'))
+        .to be_schema_compatible('pain.008.001.02')
+    end
+
+    it 'accepts any for pain.008.001.08' do
+      expect(SEPA::DirectDebitTransaction.new(charge_bearer: 'DEBT'))
+        .to be_schema_compatible('pain.008.001.08')
+    end
+
+    it 'accepts nil for EPC schemas' do
+      expect(SEPA::DirectDebitTransaction.new(bic: 'SPUEDE2UXXX', local_instrument: 'CORE', charge_bearer: nil))
+        .to be_schema_compatible('pain.008.002.02')
+    end
+  end
+
+  context 'Original Mandate ID' do
+    it 'allows valid value' do
+      expect(SEPA::DirectDebitTransaction).to accept(nil, 'OLD-MANDATE-123', 'X' * 35, for: :original_mandate_id)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::DirectDebitTransaction).not_to accept('', 'X' * 36, '!@#$%', for: :original_mandate_id)
+    end
+  end
+
   context 'Instruction Priority' do
     it 'allows valid value' do
       expect(SEPA::DirectDebitTransaction).to accept(nil, 'HIGH', 'NORM', for: :instruction_priority)

@@ -614,6 +614,130 @@ RSpec.describe SEPA::DirectDebit do
         end
       end
 
+      context 'with original_mandate_id amendment (F9)' do
+        subject do
+          sdd = direct_debit
+          sdd.add_transaction(direct_debit_transaction.merge(original_mandate_id: 'OLD-MANDATE-123'))
+          sdd.to_xml
+        end
+
+        it 'validates against pain.008.001.02' do
+          expect(subject).to validate_against('pain.008.001.02.xsd')
+        end
+
+        it 'validates against pain.008.001.08' do
+          sdd = direct_debit
+          sdd.add_transaction(direct_debit_transaction.merge(original_mandate_id: 'OLD-MANDATE-123'))
+          expect(sdd.to_xml(SEPA::PAIN_008_001_08)).to validate_against('pain.008.001.08.xsd')
+        end
+
+        it 'validates against pain.008.001.12' do
+          sdd = direct_debit
+          sdd.add_transaction(direct_debit_transaction.merge(original_mandate_id: 'OLD-MANDATE-123'))
+          expect(sdd.to_xml(SEPA::PAIN_008_001_12)).to validate_against('pain.008.001.12.xsd')
+        end
+
+        it 'validates against pain.008.002.02' do
+          sdd = direct_debit
+          sdd.add_transaction(direct_debit_transaction.merge(original_mandate_id: 'OLD-MANDATE-123'))
+          expect(sdd.to_xml(SEPA::PAIN_008_002_02)).to validate_against('pain.008.002.02.xsd')
+        end
+
+        it 'includes OrgnlMndtId in amendment details' do
+          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf[1]/DrctDbtTx/MndtRltdInf/AmdmntInd', 'true')
+          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf[1]/DrctDbtTx/MndtRltdInf/AmdmntInfDtls/OrgnlMndtId', 'OLD-MANDATE-123')
+        end
+      end
+
+      context 'with original_mandate_id combined with other amendments' do
+        subject do
+          sdd = direct_debit
+          sdd.add_transaction(direct_debit_transaction.merge(
+                                original_mandate_id: 'OLD-42',
+                                original_debtor_account: 'NL08RABO0135742099'
+                              ))
+          sdd.to_xml
+        end
+
+        it 'validates against pain.008.001.02' do
+          expect(subject).to validate_against('pain.008.001.02.xsd')
+        end
+
+        it 'includes both OrgnlMndtId and OrgnlDbtrAcct' do
+          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf[1]/DrctDbtTx/MndtRltdInf/AmdmntInfDtls/OrgnlMndtId', 'OLD-42')
+          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/DrctDbtTxInf[1]/DrctDbtTx/MndtRltdInf/AmdmntInfDtls/OrgnlDbtrAcct/Id/IBAN', 'NL08RABO0135742099')
+        end
+      end
+
+      context 'with creditor address on account (F2)' do
+        subject do
+          direct_debit_with_address.add_transaction(direct_debit_transaction)
+          direct_debit_with_address
+        end
+
+        let(:direct_debit_with_address) do
+          SEPA::DirectDebit.new(
+            name: 'Gläubiger GmbH',
+            bic: 'BANKDEFFXXX',
+            iban: 'DE87200500001234567890',
+            creditor_identifier: 'DE98ZZZ09999999999',
+            address: SEPA::Address.new(country_code: 'DE', town_name: 'Berlin', post_code: '10115')
+          )
+        end
+
+        it 'validates against pain.008.001.02' do
+          expect(subject.to_xml('pain.008.001.02')).to validate_against('pain.008.001.02.xsd')
+        end
+
+        it 'validates against pain.008.001.08' do
+          expect(subject.to_xml(SEPA::PAIN_008_001_08)).to validate_against('pain.008.001.08.xsd')
+        end
+
+        it 'validates against pain.008.001.12' do
+          expect(subject.to_xml(SEPA::PAIN_008_001_12)).to validate_against('pain.008.001.12.xsd')
+        end
+
+        it 'contains creditor PstlAdr' do
+          expect(subject.to_xml).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/Cdtr/PstlAdr/TwnNm', 'Berlin')
+        end
+      end
+
+      context 'with charge_bearer on transaction (F4)' do
+        subject do
+          sdd = direct_debit
+          sdd.add_transaction(direct_debit_transaction.merge(charge_bearer: 'SHAR'))
+          sdd
+        end
+
+        it 'validates against pain.008.001.02' do
+          expect(subject.to_xml('pain.008.001.02')).to validate_against('pain.008.001.02.xsd')
+        end
+
+        it 'validates against pain.008.001.08' do
+          expect(subject.to_xml(SEPA::PAIN_008_001_08)).to validate_against('pain.008.001.08.xsd')
+        end
+
+        it 'contains ChrgBr with SHAR' do
+          expect(subject.to_xml).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/ChrgBr', 'SHAR')
+        end
+
+        it 'fails for EPC schema pain.008.002.02' do
+          expect { subject.to_xml(SEPA::PAIN_008_002_02) }.to raise_error(SEPA::Error, /Incompatible with schema/)
+        end
+      end
+
+      context 'with charge_bearer SLEV (default behavior)' do
+        subject do
+          sdd = direct_debit
+          sdd.add_transaction(direct_debit_transaction)
+          sdd.to_xml
+        end
+
+        it 'defaults to SLEV' do
+          expect(subject).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf/ChrgBr', 'SLEV')
+        end
+      end
+
       context 'with instruction given' do
         subject do
           sct = direct_debit

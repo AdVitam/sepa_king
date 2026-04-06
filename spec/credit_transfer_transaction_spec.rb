@@ -113,6 +113,48 @@ RSpec.describe SEPA::CreditTransferTransaction do
     end
   end
 
+  context 'Charge Bearer' do
+    it 'allows valid value' do
+      expect(SEPA::CreditTransferTransaction).to accept(nil, 'DEBT', 'CRED', 'SHAR', 'SLEV', for: :charge_bearer)
+    end
+
+    it 'does not allow invalid value' do
+      expect(SEPA::CreditTransferTransaction).not_to accept('', 'INVALID', 'slev', for: :charge_bearer)
+    end
+  end
+
+  context 'Charge Bearer schema compatibility' do
+    it 'rejects non-SLEV for pain.001.002.03' do
+      expect(SEPA::CreditTransferTransaction.new(bic: 'SPUEDE2UXXX', service_level: 'SEPA', charge_bearer: 'SHAR'))
+        .not_to be_schema_compatible('pain.001.002.03')
+    end
+
+    it 'rejects non-SLEV for pain.001.003.03' do
+      expect(SEPA::CreditTransferTransaction.new(charge_bearer: 'DEBT'))
+        .not_to be_schema_compatible('pain.001.003.03')
+    end
+
+    it 'accepts SLEV for pain.001.002.03' do
+      expect(SEPA::CreditTransferTransaction.new(bic: 'SPUEDE2UXXX', service_level: 'SEPA', charge_bearer: 'SLEV'))
+        .to be_schema_compatible('pain.001.002.03')
+    end
+
+    it 'accepts any for pain.001.001.03' do
+      expect(SEPA::CreditTransferTransaction.new(charge_bearer: 'SHAR'))
+        .to be_schema_compatible('pain.001.001.03')
+    end
+
+    it 'accepts any for pain.001.001.09' do
+      expect(SEPA::CreditTransferTransaction.new(charge_bearer: 'DEBT'))
+        .to be_schema_compatible('pain.001.001.09')
+    end
+
+    it 'accepts nil for EPC schemas' do
+      expect(SEPA::CreditTransferTransaction.new(bic: 'SPUEDE2UXXX', service_level: 'SEPA', charge_bearer: nil))
+        .to be_schema_compatible('pain.001.002.03')
+    end
+  end
+
   context 'Category Purpose' do
     it 'allows valid value' do
       expect(SEPA::CreditTransferTransaction).to accept(nil, 'SALA', 'INST', 'X' * 4, for: :category_purpose)

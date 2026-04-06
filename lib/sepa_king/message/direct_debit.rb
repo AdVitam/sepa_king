@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module SEPA
-  DirectDebitGroup = Data.define(:requested_date, :local_instrument, :sequence_type, :batch_booking, :account, :instruction_priority)
+  DirectDebitGroup = Data.define(:requested_date, :local_instrument, :sequence_type, :batch_booking, :account, :instruction_priority, :charge_bearer)
 
   class DirectDebit < Message
     self.account_class = CreditorAccount
@@ -23,7 +23,8 @@ module SEPA
         sequence_type: transaction.sequence_type,
         batch_booking: transaction.batch_booking,
         account: transaction.creditor_account || account,
-        instruction_priority: transaction.instruction_priority
+        instruction_priority: transaction.instruction_priority,
+        charge_bearer: transaction.charge_bearer || 'SLEV'
       )
     end
 
@@ -61,12 +62,13 @@ module SEPA
       builder.ReqdColltnDt(group.requested_date.iso8601)
       builder.Cdtr do
         builder.Nm(group.account.name)
+        build_postal_address(builder, group.account.address) if group.account.address
       end
       build_iban_account(builder, :CdtrAcct, group.account.iban)
       builder.CdtrAgt do
         build_agent_bic(builder, group.account.bic, schema_name)
       end
-      builder.ChrgBr('SLEV')
+      builder.ChrgBr(group.charge_bearer)
     end
 
     def build_creditor_scheme_identification(builder, group)
@@ -87,6 +89,8 @@ module SEPA
     def build_amendment_informations(builder, transaction)
       builder.AmdmntInd(true)
       builder.AmdmntInfDtls do
+        builder.OrgnlMndtId(transaction.original_mandate_id) if transaction.original_mandate_id
+
         if transaction.original_debtor_account
           build_iban_account(builder, :OrgnlDbtrAcct, transaction.original_debtor_account)
         elsif transaction.same_mandate_new_debtor_agent
