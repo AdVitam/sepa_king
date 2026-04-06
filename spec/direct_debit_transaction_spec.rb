@@ -162,8 +162,8 @@ RSpec.describe SEPA::DirectDebitTransaction do
       expect(SEPA::DirectDebitTransaction).to accept(nil, 'OLD-MANDATE-123', 'X' * 35, for: :original_mandate_id)
     end
 
-    it 'does not allow too long value' do
-      expect(SEPA::DirectDebitTransaction).not_to accept('X' * 36, for: :original_mandate_id)
+    it 'does not allow invalid value' do
+      expect(SEPA::DirectDebitTransaction).not_to accept('', 'X' * 36, '!@#$%', for: :original_mandate_id)
     end
   end
 

@@ -18,17 +18,17 @@ module SEPA
                   :original_creditor_account
 
     CHARGE_BEARERS = %w[DEBT CRED SHAR SLEV].freeze
-    EPC_ONLY_SCHEMAS = %w[pain.008.002.02 pain.008.003.02].freeze
 
     validates_with MandateIdentifierValidator, field_name: :mandate_id, message: 'is invalid'
     validates_presence_of :mandate_date_of_signature
     validates_inclusion_of :local_instrument, in: LOCAL_INSTRUMENTS
     validates_inclusion_of :sequence_type, in: SEQUENCE_TYPES
-    validates_length_of :original_mandate_id, maximum: 35, allow_nil: true
     validates_inclusion_of :charge_bearer, in: CHARGE_BEARERS, allow_nil: true
     validate { |t| t.validate_requested_date_after(Date.today.next) }
 
     validate do |t|
+      errors.add(:original_mandate_id, 'is invalid') if original_mandate_id && !original_mandate_id.match?(MandateIdentifierValidator::REGEX)
+
       errors.add(:creditor_account, 'is not correct') if creditor_account && !creditor_account.valid?
 
       if original_debtor_account && !original_debtor_account.to_s.empty?
