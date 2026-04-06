@@ -64,7 +64,7 @@ module SEPA
       when PAIN_008_001_02
         SEQUENCE_TYPES_V1.include?(sequence_type)
       when PAIN_008_002_02
-        bic && %w[CORE B2B].include?(local_instrument) && currency == 'EUR' &&
+        bic && !bic.empty? && %w[CORE B2B].include?(local_instrument) && currency == 'EUR' &&
           SEQUENCE_TYPES_V1.include?(sequence_type)
       when PAIN_008_003_02
         currency == 'EUR' && SEQUENCE_TYPES_V1.include?(sequence_type)

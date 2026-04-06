@@ -26,7 +26,7 @@ module SEPA
       when PAIN_001_001_03, PAIN_001_001_09, PAIN_001_001_13
         !self.service_level || (self.service_level == 'SEPA' && currency == 'EUR')
       when PAIN_001_002_03
-        bic && self.service_level == 'SEPA' && currency == 'EUR'
+        bic && !bic.empty? && self.service_level == 'SEPA' && currency == 'EUR'
       when PAIN_001_003_03
         currency == 'EUR'
       when PAIN_001_001_03_CH_02
