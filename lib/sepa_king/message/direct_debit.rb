@@ -24,7 +24,7 @@ module SEPA
         batch_booking: transaction.batch_booking,
         account: transaction.creditor_account || account,
         instruction_priority: transaction.instruction_priority,
-        charge_bearer: transaction.charge_bearer
+        charge_bearer: transaction.charge_bearer || 'SLEV'
       )
     end
 
@@ -68,7 +68,7 @@ module SEPA
       builder.CdtrAgt do
         build_agent_bic(builder, group.account.bic, schema_name)
       end
-      builder.ChrgBr(group.charge_bearer || 'SLEV')
+      builder.ChrgBr(group.charge_bearer)
     end
 
     def build_creditor_scheme_identification(builder, group)

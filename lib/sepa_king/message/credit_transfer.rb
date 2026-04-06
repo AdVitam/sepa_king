@@ -19,7 +19,7 @@ module SEPA
         service_level: transaction.service_level,
         category_purpose: transaction.category_purpose,
         instruction_priority: transaction.instruction_priority,
-        charge_bearer: transaction.charge_bearer
+        charge_bearer: transaction.charge_bearer || (transaction.service_level ? 'SLEV' : nil)
       )
     end
 
@@ -34,8 +34,7 @@ module SEPA
           build_payment_type_information(builder, group)
           build_requested_execution_date(builder, group, schema_name)
           build_debtor_info(builder, schema_name)
-          charge_bearer = group.charge_bearer || (group.service_level ? 'SLEV' : nil)
-          builder.ChrgBr(charge_bearer) if charge_bearer
+          builder.ChrgBr(group.charge_bearer) if group.charge_bearer
 
           transactions.each { |transaction| build_transaction(builder, transaction, schema_name) }
         end
