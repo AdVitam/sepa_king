@@ -27,7 +27,7 @@ module SEPA
     validate { |t| t.validate_requested_date_after(Date.today.next) }
 
     validate do |t|
-      errors.add(:original_mandate_id, 'is invalid') if original_mandate_id && !original_mandate_id.match?(MandateIdentifierValidator::REGEX)
+      errors.add(:original_mandate_id, 'is invalid') if original_mandate_id && !original_mandate_id.to_s.match?(MandateIdentifierValidator::REGEX)
 
       errors.add(:creditor_account, 'is not correct') if creditor_account && !creditor_account.valid?
 
