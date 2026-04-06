@@ -121,7 +121,10 @@ module SEPA
           errors.add(:instructions_for_creditor_agent, "entry #{i} must have :code and/or :instruction_info")
           next
         end
-        errors.add(:instructions_for_creditor_agent, "entry #{i} instruction_info too long") if instr[:instruction_info] && instr[:instruction_info].to_s.length > 140
+        if instr[:instruction_info]
+          len = instr[:instruction_info].to_s.length
+          errors.add(:instructions_for_creditor_agent, "entry #{i} instruction_info must be 1-140 characters") unless len.between?(1, 140)
+        end
       end
     end
 
