@@ -66,6 +66,7 @@ module SEPA
     def schema_compatible?(schema_name)
       return false unless optional_fields_compatible?(schema_name)
       return false unless instructions_for_creditor_agent_compatible?(schema_name)
+      return false unless regulatory_reportings_compatible?(schema_name)
 
       case schema_name
       when PAIN_001_001_03, PAIN_001_001_09, PAIN_001_001_13
@@ -90,6 +91,13 @@ module SEPA
         schema_allows_field?(instruction_for_debtor_agent_code, [PAIN_001_001_13], schema_name) &&
         schema_allows_field?(instruction_for_debtor_agent, TXN_INSTR_FOR_DBTR_AGT_SCHEMAS, schema_name) &&
         schema_allows_field?(regulatory_reportings&.any?, REGULATORY_REPORTING_SCHEMAS, schema_name)
+    end
+
+    # v13 RegulatoryReporting10 requires DbtCdtRptgInd (indicator)
+    def regulatory_reportings_compatible?(schema_name)
+      return true unless regulatory_reportings&.any? && schema_name == PAIN_001_001_13
+
+      regulatory_reportings.all? { |r| r.is_a?(Hash) && r[:indicator] }
     end
 
     def schema_allows_field?(value, allowed_schemas, schema_name)

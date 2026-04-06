@@ -76,9 +76,15 @@ module SEPA
         t.errors.add(:base, 'remittance_information and structured remittance fields are mutually exclusive')
       end
 
-      if t.additional_remittance_information &&
-         !(t.additional_remittance_information.is_a?(Array) && t.additional_remittance_information.length <= 3)
+      next unless t.additional_remittance_information
+
+      unless t.additional_remittance_information.is_a?(Array) && t.additional_remittance_information.length <= 3
         t.errors.add(:additional_remittance_information, 'must be an Array with at most 3 items')
+        next
+      end
+
+      t.additional_remittance_information.each_with_index do |info, i|
+        t.errors.add(:additional_remittance_information, "entry #{i} exceeds 140 characters") if info.to_s.length > 140
       end
     end
 
