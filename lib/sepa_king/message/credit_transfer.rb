@@ -207,10 +207,15 @@ module SEPA
       end
     end
 
+    # ActiveOrHistoricCurrencyAndAmount allows up to 5 fractional digits (unlike payment amounts at 2).
     def build_regulatory_detail_amount(builder, amount)
       return unless amount
 
-      builder.Amt(format_amount(BigDecimal(amount[:value].to_s)), Ccy: amount[:currency])
+      decimal = BigDecimal(amount[:value].to_s).truncate(5)
+      # Ensure at least 2 fractional digits, up to 5 (ActiveOrHistoricCurrencyAndAmount)
+      frac_digits = [decimal.to_s('F').split('.').last&.length.to_i, 2].max
+      value = format("%.#{frac_digits}f", decimal)
+      builder.Amt(value, Ccy: amount[:currency])
     end
   end
 end
