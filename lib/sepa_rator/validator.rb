@@ -1,21 +1,37 @@
 # frozen_string_literal: true
 
 module SEPA
+  # ISO 7064 Mod 97-10 checksum used by IBAN, LEI, and Creditor Identifier
+  def self.mod97_valid?(alphanumeric_string)
+    numeric = alphanumeric_string.gsub(/[A-Z]/i) { |c| c.upcase.ord - 55 }
+    numeric.to_i % 97 == 1
+  end
+
   class IBANValidator < ActiveModel::Validator
+    def self.valid_iban?(value)
+      iban = Ibandit::IBAN.new(value.to_s)
+      iban.valid? && value.to_s == iban.iban
+    end
+
     def validate(record)
       field_name = options[:field_name] || :iban
       value = record.public_send(field_name).to_s
 
       iban = Ibandit::IBAN.new(value)
-      return if iban.valid? && value == iban.iban
+      unless iban.valid?
+        record.errors.add(field_name, :invalid, message: options[:message] || iban_error_message(iban))
+        return
+      end
+      return if value == iban.iban
 
-      record.errors.add(field_name, :invalid, message: options[:message] || iban_error_message(iban))
+      record.errors.add(field_name, :invalid,
+                        message: options[:message] || 'is invalid (must be uppercase with no spaces)')
     end
 
     private
 
     def iban_error_message(iban)
-      details = iban.errors.values.flatten.join(', ')
+      details = iban.errors.values.join(', ')
       details.empty? ? 'is invalid' : "is invalid (#{details})"
     end
   end
@@ -68,9 +84,7 @@ module SEPA
       # Strip non-alphanumeric chars from national id before check (the spec allows +?/:().,'-
       # but they are ignored for mod-97 computation)
       check_base = creditor_identifier[0..3] + creditor_identifier[7..].gsub(/[^A-Za-z0-9]/, '')
-      rearranged = check_base[4..] + check_base[0..3]
-      numeric = rearranged.gsub(/[A-Z]/i) { |c| c.upcase.ord - 55 }
-      numeric.to_i % 97 == 1
+      SEPA.mod97_valid?(check_base[4..] + check_base[0..3])
     end
   end
 
@@ -106,9 +120,7 @@ module SEPA
     def valid_lei?(value)
       return false unless value.match?(REGEX)
 
-      # ISO 7064 Mod 97-10 checksum (same algorithm as IBAN)
-      numeric = value.gsub(/[A-Z]/) { |c| (c.ord - 55).to_s }
-      numeric.to_i % 97 == 1
+      SEPA.mod97_valid?(value)
     end
   end
 end

@@ -73,6 +73,12 @@ RSpec.describe SEPA::IBANValidator do
     v.valid?
     expect(v.errors[:iban_the_terrible].first).to match(/\Ais invalid \(.+\)\z/)
   end
+
+  it 'provides a specific message for lowercase or spaced IBANs' do
+    v = IBANValidatable.new(iban_the_terrible: 'de87200500001234567890')
+    v.valid?
+    expect(v.errors[:iban_the_terrible]).to eq(['is invalid (must be uppercase with no spaces)'])
+  end
 end
 
 RSpec.describe SEPA::BICValidator do
