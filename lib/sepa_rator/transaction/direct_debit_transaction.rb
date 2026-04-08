@@ -33,9 +33,9 @@ module SEPA
       errors.add(:original_mandate_id, 'is invalid') if original_mandate_id && !original_mandate_id.to_s.match?(MandateIdentifierValidator::REGEX)
 
       if original_debtor_account && !original_debtor_account.to_s.empty?
-        iban_str = original_debtor_account.to_s
+        iban = Ibandit::IBAN.new(original_debtor_account.to_s)
         errors.add(:original_debtor_account, 'is not a valid IBAN') unless
-          IBANTools::IBAN.valid?(iban_str) && iban_str.match?(IBANValidator::REGEX)
+          iban.valid? && original_debtor_account.to_s == iban.iban
       end
 
       if t.mandate_date_of_signature.is_a?(Date)

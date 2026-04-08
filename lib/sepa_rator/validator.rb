@@ -2,16 +2,21 @@
 
 module SEPA
   class IBANValidator < ActiveModel::Validator
-    # IBAN2007Identifier (taken from schema)
-    REGEX = /\A[A-Z]{2,2}[0-9]{2,2}[a-zA-Z0-9]{1,30}\z/
-
     def validate(record)
       field_name = options[:field_name] || :iban
       value = record.public_send(field_name).to_s
 
-      return if IBANTools::IBAN.valid?(value) && value.match?(REGEX)
+      iban = Ibandit::IBAN.new(value)
+      return if iban.valid? && value == iban.iban
 
-      record.errors.add(field_name, :invalid, message: options[:message])
+      record.errors.add(field_name, :invalid, message: options[:message] || iban_error_message(iban))
+    end
+
+    private
+
+    def iban_error_message(iban)
+      details = iban.errors.values.flatten.join(', ')
+      details.empty? ? 'is invalid' : "is invalid (#{details})"
     end
   end
 
@@ -91,9 +96,19 @@ module SEPA
       value = record.public_send(field_name)
 
       return unless value
-      return if value.to_s.match?(REGEX)
+      return if valid_lei?(value.to_s)
 
       record.errors.add(field_name, :invalid, message: options[:message])
+    end
+
+    private
+
+    def valid_lei?(value)
+      return false unless value.match?(REGEX)
+
+      # ISO 7064 Mod 97-10 checksum (same algorithm as IBAN)
+      numeric = value.gsub(/[A-Z]/) { |c| (c.ord - 55).to_s }
+      numeric.to_i % 97 == 1
     end
   end
 end

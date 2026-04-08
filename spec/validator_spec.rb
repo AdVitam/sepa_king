@@ -67,6 +67,12 @@ RSpec.describe SEPA::IBANValidator do
     v.valid?
     expect(v.errors[:iban]).to eq(['xxx seems wrong'])
   end
+
+  it 'provides a detailed error message by default' do
+    v = IBANValidatable.new(iban_the_terrible: 'DE22500500009876543210')
+    v.valid?
+    expect(v.errors[:iban_the_terrible].first).to match(/\Ais invalid \(.+\)\z/)
+  end
 end
 
 RSpec.describe SEPA::BICValidator do
@@ -143,7 +149,7 @@ end
 
 RSpec.describe SEPA::LEIValidator do
   it 'accepts valid LEI' do
-    expect(LEIValidatable).to accept('529900T8BM49AURSDO55', 'ABCDEFGHIJKLMNOPQR12', 'A1B2C3D4E5F6G7H8I900',
+    expect(LEIValidatable).to accept('529900T8BM49AURSDO55', 'ABCDEFGHIJKLMNOPQR30', '7ZW8GROSS5KVJYZ6MU86',
                                      for: %i[lei custom_lei])
   end
 
@@ -158,6 +164,7 @@ RSpec.describe SEPA::LEIValidator do
                                          '529900T8BM49AURSDO555',  # 21 chars (too long)
                                          '529900t8bm49aursdo55',   # lowercase letters
                                          '529900T8BM49AURSDO5A',   # last 2 must be digits
+                                         '529900T8BM49AURSDO56',   # wrong checksum
                                          for: %i[lei custom_lei])
   end
 
