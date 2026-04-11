@@ -22,5 +22,14 @@ XSDs in production:
    `xsd_path: "dk/pain.001.001.09_AXZ_GBIC5.xsd"` for each profile.
 
 The XSD cache (see `SchemaValidation#validate_final_document!`) is keyed by
-`profile.id`, so swapping the XSD for a DK-specific one never collides with
-the ISO baseline, even when they share the same ISO schema name.
+`profile.xsd_path`, so swapping the XSD for a DK-specific one never collides
+with the ISO baseline, even when they share the same ISO schema name.
+
+> ⚠️ **Until the real DK XSDs are in place**, `Profiles::DK::*` profiles
+> inherit their `xsd_path` from the EPC parent and therefore validate against
+> the ISO baseline. The DK-specific business rules (`min_amount`,
+> `requires_structured_address`) are enforced in Ruby independently of the
+> XSD, so a file that passes `to_xml` out of the box is **syntactically
+> valid** but **not** validated against GBIC5 restrictions. Banks running
+> real GBIC5 checks will reject such a file. Vendoring the real DK XSDs is
+> a hard requirement for production DK traffic.

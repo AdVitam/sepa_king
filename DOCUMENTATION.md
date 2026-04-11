@@ -707,5 +707,5 @@ The profiles under `Profiles::DK` reference the ISO baseline XSDs
 (`lib/schema/iso/pain.*.xsd`). Real DK XSDs (`pain.*_AXZ_GBIC5.xsd`) are
 licensed by Deutsche Kreditwirtschaft and not vendored in this gem — see
 `lib/schema/dk/README.md` for the procedure to wire them up in production.
-The XSD cache in `SchemaValidation` is keyed by `profile.id`, so swapping
+The XSD cache in `SchemaValidation` is keyed by `profile.xsd_path`, so swapping
 them in never collides with the ISO baseline.

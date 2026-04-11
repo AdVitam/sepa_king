@@ -63,18 +63,7 @@ module SEPA
       transaction = transaction_class.new(options)
       raise SEPA::ValidationError, transaction.errors.full_messages.join("\n") unless transaction.valid?
 
-      # DD transactions can override the PmtInf creditor. Validate the
-      # override against the profile first so a bad BIC/LEI surfaces with
-      # the specific message from `validate_account_against_profile!`
-      # instead of the generic "not compatible" from `compatible_with?`.
-      if transaction.respond_to?(:creditor_account) && transaction.creditor_account
-        validate_account_against_profile!(transaction.creditor_account, label: 'creditor_account')
-      end
-
-      raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}" unless transaction.compatible_with?(profile)
-
-      validate_transaction_addresses_against_profile!(transaction)
-      run_profile_validators(transaction)
+      validate_transaction_against_profile!(transaction)
 
       group = transaction_group(transaction)
       @grouped_transactions[group] ||= []
@@ -99,15 +88,7 @@ module SEPA
       # transactions (e.g. a caller flipping `currency` after adding).
       validate_message_against_profile!
       validate_account_against_profile!(@account)
-      transactions.each do |transaction|
-        raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}" unless transaction.compatible_with?(profile)
-
-        if transaction.respond_to?(:creditor_account) && transaction.creditor_account
-          validate_account_against_profile!(transaction.creditor_account, label: 'creditor_account')
-        end
-        validate_transaction_addresses_against_profile!(transaction)
-        run_profile_validators(transaction)
-      end
+      transactions.each { |transaction| validate_transaction_against_profile!(transaction) }
 
       doc = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |builder|
         builder.Document(xml_namespace_attributes) do
@@ -175,6 +156,22 @@ module SEPA
     end
 
     private
+
+    # Single entry point for validating a transaction against the message's
+    # profile. Called both from `add_transaction` (at insertion) and from
+    # `to_xml` (as a fail-safe against post-insertion mutations).
+    def validate_transaction_against_profile!(transaction)
+      # Validate the DD creditor_account override first — its specific error
+      # is more actionable than the generic "not compatible" fallback below.
+      if transaction.respond_to?(:creditor_account) && transaction.creditor_account
+        validate_account_against_profile!(transaction.creditor_account, label: 'creditor_account')
+      end
+
+      raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}" unless transaction.compatible_with?(profile)
+
+      validate_transaction_addresses_against_profile!(transaction)
+      run_profile_validators(transaction)
+    end
 
     # Enforce message-level rules that don't belong to any specific account
     # (e.g. `initiation_source_name` is an attribute of the pain.001 group

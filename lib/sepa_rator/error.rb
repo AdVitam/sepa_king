@@ -30,7 +30,12 @@ module SEPA
       @available_versions = available_versions.dup.freeze
       @fallback_used = fallback_used
 
-      scope = fallback_used ? "generic SEPA versions (no dedicated profile for #{country.inspect})" : "country=#{country.inspect}"
+      scope =
+        if fallback_used
+          "country=#{country.inspect} (no dedicated profile — falling back to generic SEPA versions)"
+        else
+          "country=#{country.inspect}"
+        end
       super("Version #{version.inspect} not supported for #{scope}. Available: #{@available_versions.inspect}")
     end
   end

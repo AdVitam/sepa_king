@@ -7,13 +7,13 @@ module SEPA
     extend ActiveSupport::Concern
 
     SCHEMA_DIR = File.expand_path('../../schema', __dir__).freeze
+    # Eagerly-initialised module-level XSD cache, shared across every
+    # class that includes SchemaValidation. Keyed by `profile.xsd_path`
+    # so two profiles that share an ISO schema name but point to
+    # different XSD files (e.g. the ISO baseline and the DK GBIC5
+    # variant) never share a cache entry.
+    SCHEMA_CACHE = {} # rubocop:disable Style/MutableConstant -- intentional cache
     SCHEMA_CACHE_MUTEX = Mutex.new
-
-    class_methods do
-      def schema_cache
-        @schema_cache ||= {}
-      end
-    end
 
     private
 
@@ -30,16 +30,13 @@ module SEPA
       )
     end
 
-    # Keyed by `profile.xsd_path` so two profiles that share an ISO schema
-    # name but point to different XSD files (e.g. the ISO baseline and the
-    # DK GBIC5 variant) never share a cache entry.
     def load_xsd(profile)
       cache_key = profile.xsd_path
-      cached = self.class.schema_cache[cache_key]
+      cached = SCHEMA_CACHE[cache_key]
       return cached if cached
 
       SCHEMA_CACHE_MUTEX.synchronize do
-        self.class.schema_cache[cache_key] ||= read_xsd(profile)
+        SCHEMA_CACHE[cache_key] ||= read_xsd(profile)
       end
     end
 

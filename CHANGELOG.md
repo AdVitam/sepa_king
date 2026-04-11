@@ -38,7 +38,8 @@ Successor to [salesking/sepa_king](https://github.com/salesking/sepa_king) (unma
 ### Fixed
 
 - XSD cache collision when two profiles share an ISO schema name but
-  point to different XSD files (the cache is now keyed by `profile.id`).
+  point to different XSD files (the cache is now keyed by
+  `profile.xsd_path`).
 
 ## [0.16.0] - 2026-04-08
 

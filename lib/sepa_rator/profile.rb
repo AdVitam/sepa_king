@@ -100,6 +100,14 @@ module SEPA
       %i[validators capabilities transaction_stages payment_info_stages group_header_stages]
         .each { |key| attrs[key] = attrs[key].dup.freeze unless attrs[key].frozen? }
 
+      # Catch "forgot to point at a stage class" coquilles at registration
+      # time instead of at XML build time.
+      %i[transaction_stages payment_info_stages group_header_stages].each do |key|
+        attrs[key].each do |stage|
+          raise ArgumentError, "Profile #{attrs[:id].inspect} #{key} contains #{stage.inspect} which does not respond to .call" unless stage.respond_to?(:call)
+        end
+      end
+
       super
     end
 
@@ -135,6 +143,10 @@ module SEPA
       end
     end
 
+    # Merge helper for the flat list fields `validators` and `capabilities`.
+    # Stage lists use `StageList.merge` instead, which supports positional
+    # operations (`insert_after:`, `replace:`/`with:`, `remove:`).
+    #
     # Array = append (common case), `{ replace: [...] }` = drop the parent
     # list, `{ add: [...] }` = explicit append.
     def merge_list(old, value, unique:)
@@ -171,8 +183,10 @@ module SEPA
 
     class << self
       def register(profile, aliases: [])
-        if @profiles.key?(profile.id) && !@profiles[profile.id].equal?(profile)
-          raise ArgumentError, "A different profile is already registered under id #{profile.id.inspect}"
+        ([profile.id] + aliases.map(&:to_s)).each do |key|
+          next unless @profiles.key?(key) && !@profiles[key].equal?(profile)
+
+          raise ArgumentError, "A different profile is already registered under #{key.inspect}"
         end
 
         @profiles[profile.id] = profile

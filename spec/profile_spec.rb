@@ -3,9 +3,17 @@
 require 'spec_helper'
 
 RSpec.describe SEPA::Profile do
-  let(:stage_a) { Class.new }
-  let(:stage_b) { Class.new }
-  let(:stage_c) { Class.new }
+  # Fake stages must respond to .call to satisfy the profile's
+  # registration-time shape check.
+  def self.fake_stage(name)
+    Class.new do
+      define_singleton_method(:call) { |_ctx| nil }
+      define_singleton_method(:inspect) { "FakeStage(#{name})" }
+    end
+  end
+  let(:stage_a) { self.class.fake_stage(:a) }
+  let(:stage_b) { self.class.fake_stage(:b) }
+  let(:stage_c) { self.class.fake_stage(:c) }
   let(:validator_a) { Class.new }
   let(:validator_b) { Class.new }
 
@@ -149,6 +157,18 @@ RSpec.describe SEPA::Profile do
         )
       end.to raise_error(ArgumentError, /invalid family :cross_border/)
     end
+
+    it 'rejects a stage list entry that does not respond to .call' do
+      bogus_stage = Object.new
+      expect do
+        described_class.new(
+          id: 'bad', family: :credit_transfer, iso_schema: 'x', xsd_path: 'x', namespace: 'x',
+          features: SEPA::ProfileFeatures.default, validators: [].freeze, capabilities: [].freeze,
+          transaction_stages: [bogus_stage].freeze, payment_info_stages: [].freeze,
+          group_header_stages: [].freeze, accept_transaction: nil
+        )
+      end.to raise_error(ArgumentError, /transaction_stages contains .* which does not respond to \.call/)
+    end
   end
 end
 
@@ -248,7 +268,14 @@ RSpec.describe SEPA::ProfileRegistry do
     described_class.register(profile)
     duplicate = profile.with(namespace: 'urn:other')
     expect { described_class.register(duplicate) }
-      .to raise_error(ArgumentError, /already registered under id/)
+      .to raise_error(ArgumentError, /already registered/)
+  end
+
+  it 'raises when an alias collides with a different profile' do
+    described_class.register(profile, aliases: %w[shortcut])
+    other = profile.with(id: 'test.other')
+    expect { described_class.register(other, aliases: %w[shortcut]) }
+      .to raise_error(ArgumentError, /already registered under "shortcut"/)
   end
 
   describe '.set_country_default' do

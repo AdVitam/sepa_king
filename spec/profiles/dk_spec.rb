@@ -74,6 +74,17 @@ RSpec.describe SEPA::Profiles::DK do
         sdd.add_transaction(direct_debit_transaction(debtor_address: address))
       end.to raise_error(SEPA::ValidationError, /structured fields/)
     end
+
+    it 'generates valid XML end-to-end' do
+      sdd = direct_debit_message(profile: profile)
+      sdd.add_transaction(direct_debit_transaction(
+                            debtor_address: SEPA::DebtorAddress.new(
+                              country_code: 'DE', street_name: 'Hauptstrasse', building_number: '1',
+                              town_name: 'Berlin', post_code: '10115'
+                            )
+                          ))
+      expect(sdd.to_xml).to validate_against('pain.008.001.08.xsd')
+    end
   end
 
   describe 'MinAmount validator direct test' do
