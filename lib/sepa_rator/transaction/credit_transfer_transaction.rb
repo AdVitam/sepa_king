@@ -7,17 +7,18 @@ module SEPA
     attr_accessor :service_level,
                   :category_purpose,
                   :charge_bearer,
-                  # PmtInf-level instruction for debtor agent (v09/v13, Max140Text)
+                  # PmtInf-level instruction for debtor agent (pain.001.001.09+, Max140Text).
                   :debtor_agent_instruction,
-                  # Transaction-level instruction for debtor agent (Max140Text in v03/v09, InstrInf in v13)
+                  # Transaction-level instruction for debtor agent
+                  # (Max140Text in v03/v09, structured in v13).
                   :instruction_for_debtor_agent,
-                  # ExternalDebtorAgentInstruction1Code (v13 only, 1-4 chars)
+                  # ExternalDebtorAgentInstruction1Code (v13 only, 1-4 chars).
                   :instruction_for_debtor_agent_code,
-                  # Array<Hash> of {code:, instruction_info:} for creditor agent instructions
+                  # Array<Hash{code:, instruction_info:}>
                   :instructions_for_creditor_agent,
-                  # Array<Hash> of {indicator:, authority:, details: [{type:, date:, country:, code:, amount:, information: []}]}
+                  # Array<Hash{indicator:, authority:, details:[…]}>
                   :regulatory_reportings,
-                  # CreditTransferMandateData1 fields (v13 only)
+                  # CreditTransferMandateData1 fields (v13 only).
                   :credit_transfer_mandate_id,
                   :credit_transfer_mandate_date_of_signature,
                   :credit_transfer_mandate_frequency,
@@ -25,17 +26,9 @@ module SEPA
                   :creditor_address
 
     CHARGE_BEARERS = %w[DEBT CRED SHAR SLEV].freeze
-    EPC_ONLY_SCHEMAS = %w[pain.001.002.03 pain.001.003.03].freeze
-    UETR_SCHEMAS = %w[pain.001.001.09 pain.001.001.13].freeze
-    PMTINF_INSTR_SCHEMAS = %w[pain.001.001.09 pain.001.001.13].freeze
-    MNDT_RLTD_INF_SCHEMAS = %w[pain.001.001.13].freeze
     INSTRUCTION3_CODES = %w[CHQB HOLD PHOB TELB].freeze
     FREQUENCY_CODES = %w[YEAR MNTH QURT MIAN WEEK DAIL ADHO INDA FRTN].freeze
     REGULATORY_INDICATORS = RegulatoryReportingValidator::REGULATORY_INDICATORS
-    # EPC schemas (pain.001.002.03, pain.001.003.03) do not define these elements
-    INSTR_FOR_CDTR_AGT_SCHEMAS = %w[pain.001.001.03 pain.001.001.09 pain.001.001.13 pain.001.001.03.ch.02].freeze
-    TXN_INSTR_FOR_DBTR_AGT_SCHEMAS = %w[pain.001.001.03 pain.001.001.09 pain.001.001.13 pain.001.001.03.ch.02].freeze
-    REGULATORY_REPORTING_SCHEMAS = %w[pain.001.001.03 pain.001.001.09 pain.001.001.13 pain.001.001.03.ch.02].freeze
 
     validates_inclusion_of :service_level, in: %w[SEPA URGP], allow_nil: true
     validates_length_of :category_purpose, within: 1..4, allow_nil: true
@@ -58,6 +51,8 @@ module SEPA
 
     def initialize(attributes = {})
       super
+      # EPC legacy default: SEPA service level for EUR transactions.
+      # Will move to an EPC profile validator once the EPC profile is introduced.
       self.service_level ||= 'SEPA' if currency == 'EUR'
     end
 
@@ -65,65 +60,64 @@ module SEPA
       credit_transfer_mandate_id || credit_transfer_mandate_date_of_signature || credit_transfer_mandate_frequency
     end
 
-    # Fields (uetr, bic) are already validated as nil-or-non-empty
-    # at add_transaction time, so a nil check is sufficient here.
-    def schema_compatible?(schema_name)
-      return false unless optional_fields_compatible?(schema_name)
-      return false unless instructions_for_creditor_agent_compatible?(schema_name)
-      return false unless regulatory_reportings_compatible?(schema_name)
-
-      case schema_name
-      when PAIN_001_001_03, PAIN_001_001_09, PAIN_001_001_13
-        iso_service_level_compatible?
-      when PAIN_001_002_03
-        bic && !bic.empty? && self.service_level == 'SEPA' && currency == 'EUR'
-      when PAIN_001_003_03
-        currency == 'EUR'
-      when PAIN_001_001_03_CH_02
-        currency == 'CHF'
-      end
+    # Driven by capabilities advertised on the profile. Profile-level rules
+    # (currency, service level, charge bearer) flow via `profile.accept_transaction`
+    # in the base Transaction#compatible_with?.
+    def compatible_capabilities?(profile)
+      requires_capability?(uetr, profile, :uetr) &&
+        requires_capability?(agent_lei, profile, :lei) &&
+        requires_capability?(debtor_agent_instruction, profile, :pmtinf_debtor_agent_instruction) &&
+        requires_capability?(credit_transfer_mandate?, profile, :mandate_related_info) &&
+        requires_capability?(instruction_for_debtor_agent_code, profile, :mandate_related_info) &&
+        requires_capability?(instruction_for_debtor_agent, profile, :txn_instruction_for_debtor_agent) &&
+        requires_capability?(regulatory_reportings&.any?, profile, :regulatory_reporting) &&
+        instructions_for_creditor_agent_compatible?(profile) &&
+        regulatory_reportings_compatible?(profile) &&
+        (!profile.features.requires_bic || (bic && !bic.empty?))
     end
 
     private
 
-    def optional_fields_compatible?(schema_name)
-      return false if charge_bearer && charge_bearer != 'SLEV' && EPC_ONLY_SCHEMAS.include?(schema_name)
-
-      schema_allows_field?(uetr, UETR_SCHEMAS, schema_name) &&
-        schema_allows_field?(agent_lei, LEI_SCHEMAS, schema_name) &&
-        schema_allows_field?(debtor_agent_instruction, PMTINF_INSTR_SCHEMAS, schema_name) &&
-        schema_allows_field?(credit_transfer_mandate?, MNDT_RLTD_INF_SCHEMAS, schema_name) &&
-        schema_allows_field?(instruction_for_debtor_agent_code, [PAIN_001_001_13], schema_name) &&
-        schema_allows_field?(instruction_for_debtor_agent, TXN_INSTR_FOR_DBTR_AGT_SCHEMAS, schema_name) &&
-        schema_allows_field?(regulatory_reportings&.any?, REGULATORY_REPORTING_SCHEMAS, schema_name)
+    def requires_capability?(field_present, profile, capability)
+      !field_present || profile.supports?(capability)
     end
 
-    # v13 RegulatoryReporting10 requires DbtCdtRptgInd (indicator) and supports type_proprietary.
-    # v03/v09 StructuredRegulatoryReporting3 uses plain-text Tp, so type_proprietary is incompatible.
-    def regulatory_reportings_compatible?(schema_name)
+    def instructions_for_creditor_agent_compatible?(profile)
+      return true unless instructions_for_creditor_agent&.any?
+      return false unless profile.supports?(:instructions_for_creditor_agent)
+
+      instructions_for_creditor_agent.all? { |instr| valid_instruction_code?(instr[:code], profile) }
+    end
+
+    def valid_instruction_code?(code, profile)
+      return true unless code
+
+      if profile.features.instr_for_dbtr_agt_format == :structured
+        code.to_s.length.between?(1, 4)
+      else
+        INSTRUCTION3_CODES.include?(code)
+      end
+    end
+
+    # v10 RegulatoryReporting requires DbtCdtRptgInd (indicator) and supports type_proprietary.
+    # v3 StructuredRegulatoryReporting3 uses plain-text Tp, so type_proprietary is incompatible.
+    def regulatory_reportings_compatible?(profile)
       return true unless regulatory_reportings&.any?
 
-      regulatory_reportings.all? { |r| regulatory_reporting_schema_ok?(r, schema_name) }
+      version = profile.features.regulatory_reporting_version
+      regulatory_reportings.all? { |r| regulatory_reporting_ok?(r, version) }
     end
 
-    def regulatory_reporting_schema_ok?(reporting, schema_name)
+    def regulatory_reporting_ok?(reporting, version)
       return false unless reporting.is_a?(Hash)
-      return false if schema_name == PAIN_001_001_13 && !reporting[:indicator]
-      return false if schema_name != PAIN_001_001_13 && type_proprietary?(reporting)
+      return false if version == :v10 && !reporting[:indicator]
+      return false if version != :v10 && type_proprietary?(reporting)
 
       true
     end
 
     def type_proprietary?(reporting)
       reporting[:details]&.any? { |d| d.is_a?(Hash) && d[:type_proprietary] }
-    end
-
-    def schema_allows_field?(value, allowed_schemas, schema_name)
-      !value || allowed_schemas.include?(schema_name)
-    end
-
-    def iso_service_level_compatible?
-      !self.service_level || self.service_level == 'URGP' || (self.service_level == 'SEPA' && currency == 'EUR')
     end
 
     def validate_instructions_for_creditor_agent
@@ -139,10 +133,10 @@ module SEPA
           errors.add(:instructions_for_creditor_agent, "entry #{i} must have :code and/or :instruction_info")
           next
         end
-        if instr[:instruction_info]
-          len = instr[:instruction_info].to_s.length
-          errors.add(:instructions_for_creditor_agent, "entry #{i} instruction_info must be 1-140 characters") unless len.between?(1, 140)
-        end
+        next unless instr[:instruction_info]
+
+        len = instr[:instruction_info].to_s.length
+        errors.add(:instructions_for_creditor_agent, "entry #{i} instruction_info must be 1-140 characters") unless len.between?(1, 140)
       end
     end
 
@@ -151,24 +145,6 @@ module SEPA
       return if credit_transfer_mandate_date_of_signature.is_a?(Date)
 
       errors.add(:credit_transfer_mandate_date_of_signature, 'is not a Date')
-    end
-
-    def instructions_for_creditor_agent_compatible?(schema_name)
-      return true unless instructions_for_creditor_agent&.any?
-      return false unless INSTR_FOR_CDTR_AGT_SCHEMAS.include?(schema_name)
-
-      instructions_for_creditor_agent.each do |instr|
-        code = instr[:code]
-        next unless code
-
-        case schema_name
-        when PAIN_001_001_03, PAIN_001_001_09, PAIN_001_001_03_CH_02
-          return false unless INSTRUCTION3_CODES.include?(code)
-        when PAIN_001_001_13
-          return false unless code.to_s.length.between?(1, 4)
-        end
-      end
-      true
     end
   end
 end

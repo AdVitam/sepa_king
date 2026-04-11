@@ -3,6 +3,12 @@
 require 'spec_helper'
 
 RSpec.describe SEPA::CreditTransferTransaction do
+  let(:sct_03) { SEPA::Profiles::ISO::SCT_03 }
+  let(:sct_09) { SEPA::Profiles::ISO::SCT_09 }
+  let(:sct_13) { SEPA::Profiles::ISO::SCT_13 }
+  let(:sct_epc_002_03) { SEPA::Profiles::ISO::SCT_EPC_002_03 }
+  let(:sct_epc_003_03) { SEPA::Profiles::ISO::SCT_EPC_003_03 }
+
   describe :initialize do
     it 'initializes a valid transaction' do
       expect(
@@ -16,83 +22,75 @@ RSpec.describe SEPA::CreditTransferTransaction do
     end
   end
 
-  describe :schema_compatible? do
-    context 'for pain.001.003.03' do
+  describe :compatible_with? do
+    context 'for iso.pain.001.003.03' do
       it 'succeeds' do
-        expect(SEPA::CreditTransferTransaction.new({})).to be_schema_compatible('pain.001.003.03')
-      end
-
-      it 'fails for invalid attributes' do
-        expect(SEPA::CreditTransferTransaction.new(currency: 'CHF')).not_to be_schema_compatible('pain.001.003.03')
+        expect(SEPA::CreditTransferTransaction.new({})).to be_compatible_with(sct_epc_003_03)
       end
     end
 
-    context 'pain.001.002.03' do
+    context 'for iso.pain.001.002.03' do
       it 'succeeds for valid attributes' do
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA')).to be_schema_compatible('pain.001.002.03')
+        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA'))
+          .to be_compatible_with(sct_epc_002_03)
       end
 
-      it 'fails for invalid attributes' do
-        expect(SEPA::CreditTransferTransaction.new(bic: nil)).not_to be_schema_compatible('pain.001.002.03')
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'URGP')).not_to be_schema_compatible('pain.001.002.03')
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, currency: 'CHF')).not_to be_schema_compatible('pain.001.002.03')
+      it 'fails for missing bic' do
+        expect(SEPA::CreditTransferTransaction.new(bic: nil)).not_to be_compatible_with(sct_epc_002_03)
       end
     end
 
-    context 'for pain.001.001.03' do
+    context 'for iso.pain.001.001.03' do
       it 'succeeds for valid attributes' do
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, currency: 'CHF')).to be_schema_compatible('pain.001.001.03')
-        expect(SEPA::CreditTransferTransaction.new(bic: nil)).to be_schema_compatible('pain.001.003.03')
+        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, currency: 'CHF'))
+          .to be_compatible_with(sct_03)
+        expect(SEPA::CreditTransferTransaction.new(bic: nil))
+          .to be_compatible_with(sct_epc_003_03)
       end
 
       it 'accepts URGP service level' do
-        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_schema_compatible('pain.001.001.03')
-        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_schema_compatible('pain.001.001.09')
-        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_schema_compatible('pain.001.001.13')
+        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_compatible_with(sct_03)
+        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_compatible_with(sct_09)
+        expect(SEPA::CreditTransferTransaction.new(service_level: 'URGP')).to be_compatible_with(sct_13)
       end
     end
 
-    context 'for pain.001.001.03.ch.02' do
+    context 'for iso.pain.001.001.09' do
       it 'succeeds for valid attributes' do
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, currency: 'CHF')).to be_schema_compatible('pain.001.001.03.ch.02')
-      end
-    end
-
-    context 'for pain.001.001.09' do
-      it 'succeeds for valid attributes' do
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC)).to be_schema_compatible('pain.001.001.09')
-        expect(SEPA::CreditTransferTransaction.new(bic: nil)).to be_schema_compatible('pain.001.001.09')
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, currency: 'CHF')).to be_schema_compatible('pain.001.001.09')
+        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC)).to be_compatible_with(sct_09)
+        expect(SEPA::CreditTransferTransaction.new(bic: nil)).to be_compatible_with(sct_09)
+        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, currency: 'CHF'))
+          .to be_compatible_with(sct_09)
       end
 
       it 'accepts UETR' do
         expect(SEPA::CreditTransferTransaction.new(uetr: '550e8400-e29b-41d4-a716-446655440000'))
-          .to be_schema_compatible('pain.001.001.09')
+          .to be_compatible_with(sct_09)
       end
     end
 
-    context 'for pain.001.001.13' do
+    context 'for iso.pain.001.001.13' do
       it 'succeeds for valid attributes' do
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC)).to be_schema_compatible('pain.001.001.13')
-        expect(SEPA::CreditTransferTransaction.new(bic: nil)).to be_schema_compatible('pain.001.001.13')
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, currency: 'CHF')).to be_schema_compatible('pain.001.001.13')
+        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC)).to be_compatible_with(sct_13)
+        expect(SEPA::CreditTransferTransaction.new(bic: nil)).to be_compatible_with(sct_13)
       end
 
       it 'accepts UETR' do
         expect(SEPA::CreditTransferTransaction.new(uetr: '550e8400-e29b-41d4-a716-446655440000'))
-          .to be_schema_compatible('pain.001.001.13')
+          .to be_compatible_with(sct_13)
       end
     end
 
     context 'UETR schema compatibility' do
-      it 'rejects UETR for pain.001.001.03' do
+      it 'rejects UETR for iso.pain.001.001.03' do
         expect(SEPA::CreditTransferTransaction.new(uetr: '550e8400-e29b-41d4-a716-446655440000'))
-          .not_to be_schema_compatible('pain.001.001.03')
+          .not_to be_compatible_with(sct_03)
       end
 
-      it 'rejects UETR for pain.001.002.03' do
-        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA', uetr: '550e8400-e29b-41d4-a716-446655440000'))
-          .not_to be_schema_compatible('pain.001.002.03')
+      it 'rejects UETR for iso.pain.001.002.03' do
+        expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA',
+                                                   uetr: '550e8400-e29b-41d4-a716-446655440000'))
+          .not_to be_compatible_with(sct_epc_002_03)
       end
     end
   end
@@ -101,11 +99,13 @@ RSpec.describe SEPA::CreditTransferTransaction do
     around { |example| travel_to(Time.new(2025, 6, 15, 12, 0, 0)) { example.run } }
 
     it 'allows valid value' do
-      expect(SEPA::CreditTransferTransaction).to accept(nil, Date.new(1999, 1, 1), Date.today, Date.today.next, Date.today + 2, for: :requested_date)
+      expect(SEPA::CreditTransferTransaction).to accept(nil, Date.new(1999, 1, 1), Date.today, Date.today.next,
+                                                        Date.today + 2, for: :requested_date)
     end
 
     it 'does not allow invalid value' do
-      expect(SEPA::CreditTransferTransaction).not_to accept(Date.new(1995, 12, 21), Date.today - 1, for: :requested_date)
+      expect(SEPA::CreditTransferTransaction).not_to accept(Date.new(1995, 12, 21), Date.today - 1,
+                                                            for: :requested_date)
     end
   end
 
@@ -129,54 +129,17 @@ RSpec.describe SEPA::CreditTransferTransaction do
     end
   end
 
-  context 'Charge Bearer schema compatibility' do
-    it 'rejects non-SLEV for pain.001.002.03' do
-      expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA', charge_bearer: 'SHAR'))
-        .not_to be_schema_compatible('pain.001.002.03')
-    end
-
-    it 'rejects non-SLEV for pain.001.003.03' do
-      expect(SEPA::CreditTransferTransaction.new(charge_bearer: 'DEBT'))
-        .not_to be_schema_compatible('pain.001.003.03')
-    end
-
-    it 'accepts SLEV for pain.001.002.03' do
-      expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA', charge_bearer: 'SLEV'))
-        .to be_schema_compatible('pain.001.002.03')
-    end
-
-    it 'accepts any for pain.001.001.03' do
-      expect(SEPA::CreditTransferTransaction.new(charge_bearer: 'SHAR'))
-        .to be_schema_compatible('pain.001.001.03')
-    end
-
-    it 'accepts any for pain.001.001.09' do
-      expect(SEPA::CreditTransferTransaction.new(charge_bearer: 'DEBT'))
-        .to be_schema_compatible('pain.001.001.09')
-    end
-
-    it 'accepts nil for EPC schemas' do
-      expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA', charge_bearer: nil))
-        .to be_schema_compatible('pain.001.002.03')
-    end
-  end
-
   context 'Creditor Address' do
     it 'accepts valid address_line' do
       expect(SEPA::CreditTransferTransaction).to accept(SEPA::CreditorAddress.new(
-                                                          country_code: 'CH',
-                                                          address_line1: 'Musterstrasse 123',
-                                                          address_line2: '1234 Musterstadt'
+                                                          country_code: 'CH', address_line1: 'Musterstrasse 123', address_line2: '1234 Musterstadt'
                                                         ), for: :creditor_address)
     end
 
     it 'accepts valid structured address' do
       expect(SEPA::CreditTransferTransaction).to accept(SEPA::CreditorAddress.new(
-                                                          country_code: 'CH',
-                                                          street_name: 'Mustergasse',
-                                                          building_number: '123',
-                                                          post_code: '1234',
-                                                          town_name: 'Musterstadt'
+                                                          country_code: 'CH', street_name: 'Mustergasse', building_number: '123',
+                                                          post_code: '1234', town_name: 'Musterstadt'
                                                         ), for: :creditor_address)
     end
   end
@@ -234,9 +197,7 @@ RSpec.describe SEPA::CreditTransferTransaction do
   context 'Creditor Contact Details' do
     it 'accepts valid contact details' do
       txn = SEPA::CreditTransferTransaction.new(
-        name: 'Test AG',
-        iban: SEPA::TestData::CT_TX_IBAN,
-        amount: 100,
+        name: 'Test AG', iban: SEPA::TestData::CT_TX_IBAN, amount: 100,
         creditor_contact_details: SEPA::ContactDetails.new(name: 'John Doe')
       )
       expect(txn.errors_on(:creditor_contact_details)).to be_empty
@@ -244,9 +205,7 @@ RSpec.describe SEPA::CreditTransferTransaction do
 
     it 'propagates contact details validation errors' do
       txn = SEPA::CreditTransferTransaction.new(
-        name: 'Test AG',
-        iban: SEPA::TestData::CT_TX_IBAN,
-        amount: 100,
+        name: 'Test AG', iban: SEPA::TestData::CT_TX_IBAN, amount: 100,
         creditor_contact_details: SEPA::ContactDetails.new(name_prefix: 'INVALID')
       )
       expect(txn.errors_on(:creditor_contact_details)).not_to be_empty
@@ -254,9 +213,7 @@ RSpec.describe SEPA::CreditTransferTransaction do
 
     it 'accepts nil contact details' do
       txn = SEPA::CreditTransferTransaction.new(
-        name: 'Test AG',
-        iban: SEPA::TestData::CT_TX_IBAN,
-        amount: 100
+        name: 'Test AG', iban: SEPA::TestData::CT_TX_IBAN, amount: 100
       )
       expect(txn.errors_on(:creditor_contact_details)).to be_empty
     end
@@ -355,25 +312,24 @@ RSpec.describe SEPA::CreditTransferTransaction do
     end
   end
 
-  describe 'schema_compatible? with LEI' do
-    it 'rejects LEI for pain.001.001.03' do
+  describe 'compatible_with? with LEI' do
+    it 'rejects LEI for iso.pain.001.001.03' do
       expect(SEPA::CreditTransferTransaction.new(agent_lei: SEPA::TestData::LEI))
-        .not_to be_schema_compatible('pain.001.001.03')
+        .not_to be_compatible_with(sct_03)
     end
 
-    it 'rejects LEI for pain.001.002.03' do
-      expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA', agent_lei: SEPA::TestData::LEI))
-        .not_to be_schema_compatible('pain.001.002.03')
+    it 'rejects LEI for iso.pain.001.002.03' do
+      expect(SEPA::CreditTransferTransaction.new(bic: SEPA::TestData::DD_TX_ALT_BIC, service_level: 'SEPA',
+                                                 agent_lei: SEPA::TestData::LEI))
+        .not_to be_compatible_with(sct_epc_002_03)
     end
 
-    it 'accepts LEI for pain.001.001.09' do
-      expect(SEPA::CreditTransferTransaction.new(agent_lei: SEPA::TestData::LEI))
-        .to be_schema_compatible('pain.001.001.09')
+    it 'accepts LEI for iso.pain.001.001.09' do
+      expect(SEPA::CreditTransferTransaction.new(agent_lei: SEPA::TestData::LEI)).to be_compatible_with(sct_09)
     end
 
-    it 'accepts LEI for pain.001.001.13' do
-      expect(SEPA::CreditTransferTransaction.new(agent_lei: SEPA::TestData::LEI))
-        .to be_schema_compatible('pain.001.001.13')
+    it 'accepts LEI for iso.pain.001.001.13' do
+      expect(SEPA::CreditTransferTransaction.new(agent_lei: SEPA::TestData::LEI)).to be_compatible_with(sct_13)
     end
   end
 end

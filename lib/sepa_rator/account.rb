@@ -15,15 +15,19 @@ module SEPA
     validates_with LEIValidator, field_name: :agent_lei, message: 'is invalid'
     validates :address, :contact_details, nested_model: true, allow_nil: true
 
-    def initiating_party_id(builder, schema_name); end
+    # @param _builder [Nokogiri::XML::Builder]
+    # @param _profile [SEPA::Profile]
+    # @abstract Override in subclasses to emit an `<Id>` block inside `<InitgPty>`.
+    def initiating_party_id(_builder, _profile); end
 
     protected
 
-    # Builds Id > OrgId block. XSD sequence: BICOrBEI/AnyBIC → LEI → Othr
-    def build_organisation_id(builder, identifier, schema_name, **options)
+    # Builds `<Id><OrgId>` with the schema-appropriate BIC tag (BICOrBEI/AnyBIC)
+    # and an optional LEI. Only emits LEI when the profile supports it.
+    def build_organisation_id(builder, identifier, profile, **options)
       builder.Id do
         builder.OrgId do
-          build_org_bic_and_lei(builder, schema_name, options)
+          build_org_bic_and_lei(builder, profile, options)
           if identifier
             builder.Othr do
               builder.Id(identifier)
@@ -34,12 +38,9 @@ module SEPA
       end
     end
 
-    def build_org_bic_and_lei(builder, schema_name, options)
-      if options[:org_bic]
-        bic_tag = SCHEMA_FEATURES[schema_name][:org_bic_tag]
-        builder.__send__(bic_tag, options[:org_bic])
-      end
-      builder.LEI(options[:lei]) if options[:lei] && LEI_SCHEMAS.include?(schema_name)
+    def build_org_bic_and_lei(builder, profile, options)
+      builder.__send__(profile.features.org_bic_tag, options[:org_bic]) if options[:org_bic]
+      builder.LEI(options[:lei]) if options[:lei] && profile.supports?(:lei)
     end
   end
 end

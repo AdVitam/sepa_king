@@ -3,8 +3,8 @@
 module SEPA
   class DirectDebitTransaction < Transaction
     SEQUENCE_TYPES = %w[FRST OOFF RCUR FNAL RPRE].freeze
-    SEQUENCE_TYPES_V1 = %w[FRST OOFF RCUR FNAL].freeze
     LOCAL_INSTRUMENTS = %w[CORE COR1 B2B].freeze
+    CHARGE_BEARERS = %w[DEBT CRED SHAR SLEV].freeze
 
     attr_accessor :mandate_id,
                   :mandate_date_of_signature,
@@ -18,8 +18,6 @@ module SEPA
                   :original_creditor_account,
                   :debtor_contact_details,
                   :debtor_address
-
-    CHARGE_BEARERS = %w[DEBT CRED SHAR SLEV].freeze
 
     validates_with MandateIdentifierValidator, field_name: :mandate_id, message: 'is invalid'
     validates_presence_of :mandate_date_of_signature
@@ -57,40 +55,17 @@ module SEPA
       original_mandate_id || original_debtor_account || same_mandate_new_debtor_agent || original_creditor_account
     end
 
-    UETR_SCHEMAS = %w[pain.008.001.08 pain.008.001.12].freeze
-
-    # Fields (uetr, instruction_priority, bic) are already validated as nil-or-non-empty
-    # at add_transaction time, so a nil check is sufficient here.
-    def schema_compatible?(schema_name)
-      return false unless optional_fields_schema_compatible?(schema_name)
-
-      case schema_name
-      when PAIN_008_001_02
-        SEQUENCE_TYPES_V1.include?(sequence_type)
-      when PAIN_008_002_02
-        epc_v2_compatible?
-      when PAIN_008_003_02
-        epc_compatible? && currency == 'EUR' && SEQUENCE_TYPES_V1.include?(sequence_type)
-      when PAIN_008_001_08, PAIN_008_001_12
-        true
-      end
+    def compatible_capabilities?(profile)
+      requires_capability?(uetr, profile, :uetr) &&
+        requires_capability?(agent_lei, profile, :lei) &&
+        requires_capability?(creditor_account&.agent_lei, profile, :lei) &&
+        (!profile.features.requires_bic || (bic && !bic.empty?))
     end
 
     private
 
-    def optional_fields_schema_compatible?(schema_name)
-      !(uetr && !UETR_SCHEMAS.include?(schema_name)) &&
-        !(agent_lei && !LEI_SCHEMAS.include?(schema_name)) &&
-        !(creditor_account&.agent_lei && !LEI_SCHEMAS.include?(schema_name))
-    end
-
-    def epc_v2_compatible?
-      epc_compatible? && bic && !bic.empty? && %w[CORE B2B].include?(local_instrument) &&
-        currency == 'EUR' && SEQUENCE_TYPES_V1.include?(sequence_type)
-    end
-
-    def epc_compatible?
-      !instruction_priority && (!charge_bearer || charge_bearer == 'SLEV')
+    def requires_capability?(field_present, profile, capability)
+      !field_present || profile.supports?(capability)
     end
   end
 end

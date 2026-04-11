@@ -5,14 +5,14 @@ require 'nokogiri'
 
 RSpec::Matchers.define :validate_against do |xsd|
   match do |actual|
-    @schema = Nokogiri::XML::Schema(File.read("lib/schema/#{xsd}"))
+    path = xsd.include?('/') ? xsd : "iso/#{xsd}"
+    @schema = Nokogiri::XML::Schema(File.read("lib/schema/#{path}"))
     @doc = Nokogiri::XML(actual)
 
     expect(@schema).to be_valid(@doc)
   end
 
   failure_message do |_actual|
-    # Return the validation errors as string
     @schema.validate(@doc).join("\n")
   end
 end

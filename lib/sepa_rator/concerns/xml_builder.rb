@@ -1,10 +1,57 @@
 # frozen_string_literal: true
 
 module SEPA
+  # Collection of stateless helpers used by builder stages to emit common
+  # XML fragments (addresses, contacts, agent BIC, remittance info, etc.).
+  #
+  # All helpers are profile-aware: rather than branching on a schema name,
+  # they consult `profile.features` and `profile.supports?(...)` so the same
+  # helper renders correctly for every supported ISO 20022 variant.
   module XmlBuilder
-    private
+    module_function
+
+    # Element order follows PostalAddress27 XSD sequence (the superset).
+    # Fields absent in older schemas are rejected by XSD validation.
+    POSTAL_ADDRESS_FIELDS = [
+      %i[CareOf care_of],
+      %i[Dept department],
+      %i[SubDept sub_department],
+      %i[StrtNm street_name],
+      %i[BldgNb building_number],
+      %i[BldgNm building_name],
+      %i[Flr floor],
+      %i[UnitNb unit_number],
+      %i[PstBx post_box],
+      %i[Room room],
+      %i[PstCd post_code],
+      %i[TwnNm town_name],
+      %i[TwnLctnNm town_location_name],
+      %i[DstrctNm district_name],
+      %i[CtrySubDvsn country_sub_division],
+      %i[Ctry country_code],
+      %i[AdrLine address_line1],
+      %i[AdrLine address_line2]
+    ].freeze
+
+    # Element order follows Contact13 XSD sequence (the superset).
+    # Othr (OtherContact1) and PrefrdMtd are handled separately.
+    CONTACT_DETAILS_FIELDS = [
+      %i[NmPrfx name_prefix],
+      %i[Nm name],
+      %i[PhneNb phone_number],
+      %i[MobNb mobile_number],
+      %i[FaxNb fax_number],
+      %i[URLAdr url_address],
+      %i[EmailAdr email_address],
+      %i[EmailPurp email_purpose],
+      %i[JobTitl job_title],
+      %i[Rspnsblty responsibility],
+      %i[Dept department]
+    ].freeze
 
     def build_postal_address(builder, address)
+      return unless address
+
       builder.PstlAdr do
         POSTAL_ADDRESS_FIELDS.each do |xml_tag, attr|
           value = address.public_send(attr)
@@ -13,12 +60,12 @@ module SEPA
       end
     end
 
-    def build_agent_bic(builder, bic, schema_name, fallback: true, lei: nil)
-      lei_emitted = lei && LEI_SCHEMAS.include?(schema_name)
+    def build_agent_bic(builder, bic, profile, fallback: true, lei: nil)
+      lei_emitted = lei && profile.supports?(:lei)
 
       builder.FinInstnId do
         # XSD sequence: BICFI/BIC → ClrSysMmbId → LEI → Nm → PstlAdr → Othr
-        builder.__send__(schema_features(schema_name)[:bic_tag], bic) if bic
+        builder.__send__(profile.features.bic_tag, bic) if bic
         builder.LEI(lei) if lei_emitted
         if !bic && !lei_emitted && fallback
           builder.Othr do
@@ -86,14 +133,6 @@ module SEPA
       return unless purpose_code
 
       builder.Purp { builder.Cd(purpose_code) }
-    end
-
-    def build_payment_identification(builder, transaction)
-      builder.PmtId do
-        builder.InstrId(transaction.instruction) if transaction.instruction && !transaction.instruction.empty?
-        builder.EndToEndId(transaction.reference)
-        builder.UETR(transaction.uetr) if transaction.uetr && !transaction.uetr.empty?
-      end
     end
 
     def build_iban_account(builder, tag, iban)

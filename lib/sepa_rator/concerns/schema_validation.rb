@@ -17,14 +17,12 @@ module SEPA
 
     private
 
-    def validate_final_document!(document, schema_name)
-      raise ArgumentError, "Unknown schema: #{schema_name}" unless SCHEMA_FEATURES.key?(schema_name)
-
-      xsd = self.class.schema_cache[schema_name]
+    def validate_final_document!(document, profile)
+      xsd = self.class.schema_cache[profile.id]
       unless xsd
         SCHEMA_CACHE_MUTEX.synchronize do
-          xsd = self.class.schema_cache[schema_name] ||=
-            Nokogiri::XML::Schema(File.read("#{SCHEMA_DIR}/#{schema_name}.xsd"))
+          xsd = self.class.schema_cache[profile.id] ||=
+            Nokogiri::XML::Schema(File.read(File.join(SCHEMA_DIR, profile.xsd_path)))
         end
       end
 
@@ -33,7 +31,7 @@ module SEPA
 
       sanitized = validation_errors.map { |e| e.message.gsub(/'[^']{20,}'/, "'[REDACTED]'") }
       raise SEPA::SchemaValidationError.new(
-        "Incompatible with schema #{schema_name}: #{sanitized.join(', ')}",
+        "Incompatible with profile #{profile.id}: #{sanitized.join(', ')}",
         validation_errors.map(&:message)
       )
     end
