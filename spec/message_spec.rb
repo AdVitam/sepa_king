@@ -4,17 +4,36 @@ require 'spec_helper'
 
 class DummyTransaction < SEPA::Transaction
   def valid? = true
+  def compatible_with?(_profile) = true
 end
 
-class DummyMessage < SEPA::Message # rubocop:disable Style/OneClassPerFile
+class DummyMessage < SEPA::Message
+  FAMILY = :credit_transfer
+  XML_MAIN_TAG = :Dummy
   self.account_class = SEPA::Account
   self.transaction_class = DummyTransaction
 end
 
+# A profile reserved for unit tests of the abstract Message base class.
+DUMMY_PROFILE = SEPA::Profile.new(
+  id: 'dummy.test',
+  family: :credit_transfer,
+  iso_schema: 'dummy',
+  xsd_path: 'iso/pain.001.001.03.xsd',
+  namespace: 'urn:dummy',
+  features: SEPA::ProfileFeatures.default,
+  validators: [].freeze,
+  capabilities: [].freeze,
+  transaction_stages: [].freeze,
+  payment_info_stages: [].freeze,
+  group_header_stages: [].freeze,
+  accept_transaction: nil
+)
+
 RSpec.describe SEPA::Message do
   describe :amount_total do
     subject do
-      message = DummyMessage.new
+      message = DummyMessage.new(profile: DUMMY_PROFILE)
       message.add_transaction amount: 1.1
       message.add_transaction amount: 2.2
       message
@@ -30,7 +49,7 @@ RSpec.describe SEPA::Message do
   end
 
   describe 'validation' do
-    subject { DummyMessage.new }
+    subject { DummyMessage.new(profile: DUMMY_PROFILE) }
 
     it 'fails with invalid account' do
       expect(subject).not_to be_valid
@@ -44,7 +63,7 @@ RSpec.describe SEPA::Message do
   end
 
   describe :message_identification do
-    subject { DummyMessage.new }
+    subject { DummyMessage.new(profile: DUMMY_PROFILE) }
 
     describe 'getter' do
       it 'returns prefixed random hex string' do
@@ -85,7 +104,7 @@ RSpec.describe SEPA::Message do
   end
 
   describe :creation_date_time do
-    subject { DummyMessage.new }
+    subject { DummyMessage.new(profile: DUMMY_PROFILE) }
 
     describe 'getter' do
       it 'returns Time.now.iso8601' do

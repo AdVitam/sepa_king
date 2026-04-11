@@ -15,6 +15,7 @@ RSpec/DescribeClass:
   Exclude:
     - 'spec/message_spec.rb'
     - 'spec/validation_spec.rb'
+    - 'spec/public_api_spec.rb'
 
 # Non-autocorrectable cops that require significant manual rework of existing tests.
 # These are acceptable in test files per project guidelines.
@@ -80,6 +81,18 @@ Metrics/AbcSize:
 
 Metrics/ClassLength:
   Max: 180
+
+Metrics/ModuleLength:
+  Max: 220
+
+# Profile constants are named after ISO 20022 schema versions (SCT_03, SDD_08, ...),
+# which use numeric suffixes intentionally. The same applies to `let(:sdd_02)` helpers
+# in specs — the version is part of the identity, not an incidental index.
+Naming/VariableNumber:
+  Enabled: false
+
+RSpec/IndexedLet:
+  Enabled: false
 
 Metrics/CyclomaticComplexity:
   Max: 15

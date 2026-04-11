@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+- [Profiles and the public API](#profiles-and-the-public-api)
 - [Credit Transfer (pain.001)](#credit-transfer-pain001)
 - [Direct Debit (pain.008)](#direct-debit-pain008)
 - [Addresses](#addresses)
@@ -20,7 +21,38 @@
 - [Contact Details](#contact-details)
 - [Remittance Information](#remittance-information)
 - [Validators](#validators)
-- [Supported Schemas](#supported-schemas)
+- [Supported Profiles and Schemas](#supported-profiles-and-schemas)
+
+---
+
+## Profiles and the public API
+
+A `SEPA::Message` is bound to a single `SEPA::Profile` at construction time.
+The profile determines the XSD, the namespace, which features are emitted
+(UETR, LEI, structured vs text InstrForDbtrAgt, …) and which extra validators
+run at `add_transaction` time. `to_xml` takes no argument — the profile is
+already known.
+
+The constructor accepts a four-level API:
+
+| Level | Call site                                                                    | Resolves to                                  |
+|-------|------------------------------------------------------------------------------|----------------------------------------------|
+| 0     | `SEPA::CreditTransfer.new(name:, iban:, bic:)`                               | Latest generic EPC SEPA profile              |
+| 1     | `SEPA::CreditTransfer.new(country: :fr, ...)`                                | Country-specific profile (falls back to EPC) |
+| 2     | `SEPA::CreditTransfer.new(country: :fr, version: :v09, ...)`                 | Same, pinned to a specific ISO version       |
+| 3     | `SEPA::CreditTransfer.new(profile: SEPA::Profiles::DK::SCT_09_GBIC5, ...)`   | Explicit profile constant                    |
+
+`country:` is the country of the **bank that receives and processes the
+generated XML file** (the debtor's bank for credit transfers, the creditor's
+bank for direct debits), not the country of the beneficiary. Countries
+without a dedicated profile fall back to the generic EPC profile.
+
+`profile:` and `country:`/`version:` are mutually exclusive. Passing an
+unknown version raises `SEPA::UnsupportedVersionError`, which exposes
+`country`, `version` and `available_versions` on the error instance.
+
+The examples below use explicit profile constants for clarity; any of the
+four levels above yields the same objects.
 
 ---
 
@@ -30,6 +62,7 @@
 
 ```ruby
 sct = SEPA::CreditTransfer.new(
+  profile: SEPA::Profiles::ISO::SCT_09,  # or `country: :fr`, or omit for the EPC default
   name: 'Debtor Inc.',             # Required, max 70 chars
   iban: 'DE87200500001234567890',  # Required
   bic:  'BANKDEFFXXX',            # Optional, 8 or 11 chars
@@ -132,12 +165,17 @@ sct.add_transaction(
 ### Generate XML
 
 ```ruby
-xml = sct.to_xml                               # pain.001.001.03 (default)
-xml = sct.to_xml('pain.001.001.09')            # newer
-xml = sct.to_xml('pain.001.001.13')            # latest
-xml = sct.to_xml('pain.001.002.03')            # EPC (SEPA-only)
-xml = sct.to_xml('pain.001.003.03')            # German DK
-xml = sct.to_xml('pain.001.001.03.ch.02')      # Swiss SIX (CHF)
+xml = sct.to_xml   # rendered against the profile passed to `new`
+```
+
+To render the same payment data against a different variant, build a fresh
+message with the target profile:
+
+```ruby
+# Latest pain.001.001.13 under the CFONB profile
+sct = SEPA::CreditTransfer.new(country: :fr, name: ..., iban: ..., bic: ...)
+sct.add_transaction(...)
+sct.to_xml
 ```
 
 ---
@@ -148,6 +186,7 @@ xml = sct.to_xml('pain.001.001.03.ch.02')      # Swiss SIX (CHF)
 
 ```ruby
 sdd = SEPA::DirectDebit.new(
+  profile: SEPA::Profiles::ISO::SDD_08,           # or `country: :de`, etc.
   name:                'Creditor Inc.',          # Required, max 70 chars
   iban:                'DE87200500001234567890',  # Required
   bic:                 'BANKDEFFXXX',            # Optional
@@ -237,11 +276,7 @@ sdd.add_transaction(
 ### Generate XML
 
 ```ruby
-xml = sdd.to_xml                               # pain.008.001.02 (default)
-xml = sdd.to_xml('pain.008.001.08')            # newer
-xml = sdd.to_xml('pain.008.001.12')            # latest
-xml = sdd.to_xml('pain.008.002.02')            # EPC (SEPA-only)
-xml = sdd.to_xml('pain.008.003.02')            # German DK
+xml = sdd.to_xml   # rendered against the profile passed to `new`
 ```
 
 ---
@@ -369,17 +404,23 @@ These can be combined. `OrgnlMndtId` is always emitted first in the XML (per XSD
 
 The `initiation_source_name` and `initiation_source_provider` attributes identify the software that created the message. Set on the message object (not the transaction).
 
-- **Schema support**: `pain.001.001.13` only
+- **Profile capability**: `:initiation_source` (only `pain.001.001.13`)
 - `initiation_source_name` — Required when used, max 140 chars (`InitnSrc/Nm`)
 - `initiation_source_provider` — Optional, max 35 chars (`InitnSrc/Prvdr`)
 
 ```ruby
-sct = SEPA::CreditTransfer.new(name: 'Debtor Inc.', iban: 'DE87200500001234567890')
+sct = SEPA::CreditTransfer.new(
+  profile: SEPA::Profiles::ISO::SCT_13,
+  name: 'Debtor Inc.', iban: 'DE87200500001234567890', bic: 'BANKDEFFXXX'
+)
 sct.initiation_source_name = 'MyPaymentApp'
 sct.initiation_source_provider = 'Advitam'
 ```
 
-Using these attributes with non-v13 schemas raises `SEPA::SchemaValidationError`.
+Assigning `initiation_source_name` on a profile that does not advertise
+the `:initiation_source` capability raises `SEPA::ValidationError` at the
+setter — use `SEPA::Profiles::ISO::SCT_13` or a compatible country
+profile if you need this element.
 
 ---
 
@@ -486,6 +527,7 @@ The LEI is a 20-character identifier (ISO 17442) for legal entities in financial
 ```ruby
 # Account-level LEI (debtor's bank)
 sct = SEPA::CreditTransfer.new(
+  profile: SEPA::Profiles::ISO::SCT_09,
   name: 'Debtor Inc.', iban: 'DE87200500001234567890',
   bic: 'BANKDEFFXXX', agent_lei: '529900T8BM49AURSDO55',
   initiating_party_lei: '529900ABCDEFGHIJKL19'
@@ -513,7 +555,8 @@ XSD element order in `OrgId`: `BICOrBEI`/`AnyBIC` → `LEI` → `Othr`
 
 ```ruby
 sct = SEPA::CreditTransfer.new(
-  name: 'Debtor Inc.', iban: 'DE87200500001234567890',
+  profile: SEPA::Profiles::ISO::SCT_09,
+  name: 'Debtor Inc.', iban: 'DE87200500001234567890', bic: 'BANKDEFFXXX',
   initiating_party_bic: 'BANKDEFFXXX',
   initiating_party_identifier: 'DE98ZZZ09999999999'
 )
@@ -613,25 +656,56 @@ validates_with SEPA::LEIValidator, field_name: :other_lei   # custom field
 
 ---
 
-## Supported Schemas
+## Supported Profiles and Schemas
+
+Profiles compose in layers: `ISO` → `EPC` → country-specific (`CFONB`, `DK`).
+Each country layer inherits the XSD, stage list and capabilities of its parent
+and adds its own rules (extra validators, stricter `accept_transaction`, etc.).
 
 ### Credit Transfer (pain.001)
 
-| Schema | Type | Notes |
-|--------|------|-------|
-| `pain.001.001.03` | ISO generic | Default. PostalAddress6 |
-| `pain.001.001.09` | ISO 2019 | PostalAddress24, BICFI, UETR, LEI, AnyBIC, Contact4, InstrForDbtrAgt (PmtInf) |
-| `pain.001.001.13` | ISO latest | PostalAddress27, BICFI, UETR, LEI, AnyBIC, Contact13, InitnSrc, MndtRltdInf, structured InstrForDbtrAgt, RegulatoryReporting10 |
-| `pain.001.002.03` | EPC/SEPA | EUR only, BIC required, ChrgBr=SLEV only |
-| `pain.001.003.03` | German DK | EUR only |
-| `pain.001.001.03.ch.02` | Swiss SIX | CHF only |
+| Profile constant                  | ISO schema            | Notes |
+|-----------------------------------|-----------------------|-------|
+| `Profiles::ISO::SCT_03`           | `pain.001.001.03`     | Permissive ISO baseline, PostalAddress6 |
+| `Profiles::ISO::SCT_09`           | `pain.001.001.09`     | PostalAddress24, BICFI, UETR, LEI, AnyBIC, Contact4, InstrForDbtrAgt (PmtInf) |
+| `Profiles::ISO::SCT_13`           | `pain.001.001.13`     | PostalAddress27, Contact13, InitnSrc, MndtRltdInf, structured InstrForDbtrAgt, RegulatoryReporting10 |
+| `Profiles::ISO::SCT_EPC_002_03`   | `pain.001.002.03`     | EPC AOS, EUR only, BIC required, ChrgBr=SLEV only |
+| `Profiles::ISO::SCT_EPC_003_03`   | `pain.001.003.03`     | EPC AOS, EUR only |
+| `Profiles::EPC::SCT_09`           | `pain.001.001.09`     | ISO 09 tightened with the EPC rulebook (EUR, SEPA service level, SLEV) |
+| `Profiles::EPC::SCT_13`           | `pain.001.001.13`     | Same, for v13 |
+| `Profiles::CFONB::SCT_09`         | `pain.001.001.09`     | EPC + structured addresses required (CFONB rule) |
+| `Profiles::CFONB::SCT_13`         | `pain.001.001.13`     | Same, for v13 |
+| `Profiles::DK::SCT_09_GBIC5`      | `pain.001.001.09`     | EPC + DK GBIC5 (min_amount 0.01, structured addresses) |
+| `Profiles::DK::SCT_13_GBIC5`      | `pain.001.001.13`     | Same, for v13 |
 
 ### Direct Debit (pain.008)
 
-| Schema | Type | Notes |
-|--------|------|-------|
-| `pain.008.001.02` | ISO generic | Default. PostalAddress6 |
-| `pain.008.001.08` | ISO 2019 | PostalAddress24, BICFI, UETR, LEI, AnyBIC, Contact4, RPRE sequence type |
-| `pain.008.001.12` | ISO latest | PostalAddress27, BICFI, UETR, LEI, AnyBIC, Contact13, RPRE sequence type |
-| `pain.008.002.02` | EPC/SEPA | EUR only, BIC required, CORE/B2B only, ChrgBr=SLEV only |
-| `pain.008.003.02` | German DK | EUR only |
+| Profile constant                  | ISO schema            | Notes |
+|-----------------------------------|-----------------------|-------|
+| `Profiles::ISO::SDD_02`           | `pain.008.001.02`     | ISO baseline, v1 sequence types only (no RPRE) |
+| `Profiles::ISO::SDD_08`           | `pain.008.001.08`     | PostalAddress24, BICFI, UETR, LEI, AnyBIC, Contact4, RPRE |
+| `Profiles::ISO::SDD_12`           | `pain.008.001.12`     | PostalAddress27, Contact13, RPRE |
+| `Profiles::ISO::SDD_EPC_002_02`   | `pain.008.002.02`     | EPC AOS, EUR only, BIC required, CORE/B2B only, ChrgBr=SLEV only |
+| `Profiles::ISO::SDD_EPC_003_02`   | `pain.008.003.02`     | EPC AOS, EUR only |
+| `Profiles::EPC::SDD_08`           | `pain.008.001.08`     | ISO 08 tightened with the EPC rulebook |
+| `Profiles::EPC::SDD_12`           | `pain.008.001.12`     | Same, for v12 |
+| `Profiles::CFONB::SDD_08`         | `pain.008.001.08`     | EPC + structured addresses required |
+| `Profiles::CFONB::SDD_12`         | `pain.008.001.12`     | Same, for v12 |
+| `Profiles::DK::SDD_08_GBIC5`      | `pain.008.001.08`     | EPC + DK GBIC5 |
+| `Profiles::DK::SDD_12_GBIC5`      | `pain.008.001.12`     | Same, for v12 |
+
+### Country defaults
+
+The `country:` / `version:` lookup (`SEPA::CreditTransfer.new(country: :fr, ...)`)
+is driven by `SEPA::ProfileRegistry.recommended(family:, country:, version:)`.
+The current mappings live in `lib/sepa_rator/profiles/country_defaults.rb`.
+`country: nil` (or an unknown country) falls back to the generic EPC profiles.
+
+### DK XSDs
+
+The profiles under `Profiles::DK` reference the ISO baseline XSDs
+(`lib/schema/iso/pain.*.xsd`). Real DK XSDs (`pain.*_AXZ_GBIC5.xsd`) are
+licensed by Deutsche Kreditwirtschaft and not vendored in this gem — see
+`lib/schema/dk/README.md` for the procedure to wire them up in production.
+The XSD cache in `SchemaValidation` is keyed by `profile.xsd_path`, so swapping
+them in never collides with the ISO baseline.

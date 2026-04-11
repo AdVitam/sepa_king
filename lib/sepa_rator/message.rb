@@ -1,95 +1,26 @@
 # frozen_string_literal: true
 
 module SEPA
-  PAIN_008_001_02 = 'pain.008.001.02'
-  PAIN_008_001_08 = 'pain.008.001.08'
-  PAIN_008_001_12 = 'pain.008.001.12'
-  PAIN_008_002_02 = 'pain.008.002.02'
-  PAIN_008_003_02 = 'pain.008.003.02'
-  PAIN_001_001_03 = 'pain.001.001.03'
-  PAIN_001_001_09 = 'pain.001.001.09'
-  PAIN_001_001_13 = 'pain.001.001.13'
-  PAIN_001_002_03 = 'pain.001.002.03'
-  PAIN_001_003_03 = 'pain.001.003.03'
-  PAIN_001_001_03_CH_02 = 'pain.001.001.03.ch.02'
-
-  SCHEMA_FEATURES = {
-    PAIN_001_001_03 => { bic_tag: :BIC,   wrap_date: false, swiss: false, requires_bic: false,
-                         org_bic_tag: :BICOrBEI, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_001_001_09 => { bic_tag: :BICFI, wrap_date: true,  swiss: false, requires_bic: false,
-                         org_bic_tag: :AnyBIC, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_001_001_13 => { bic_tag: :BICFI, wrap_date: true,  swiss: false, requires_bic: false,
-                         org_bic_tag: :AnyBIC, instr_for_dbtr_agt_format: :structured, regulatory_reporting_version: :v10 },
-    PAIN_001_002_03 => { bic_tag: :BIC,   wrap_date: false, swiss: false, requires_bic: true,
-                         org_bic_tag: :BICOrBEI, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_001_003_03 => { bic_tag: :BIC,   wrap_date: false, swiss: false, requires_bic: false,
-                         org_bic_tag: :BICOrBEI, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_001_001_03_CH_02 => { bic_tag: :BIC, wrap_date: false, swiss: true, requires_bic: false,
-                               org_bic_tag: :BICOrBEI, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_008_001_02 => { bic_tag: :BIC,   wrap_date: false, swiss: false, requires_bic: false,
-                         org_bic_tag: :BICOrBEI, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_008_001_08 => { bic_tag: :BICFI, wrap_date: false, swiss: false, requires_bic: false,
-                         org_bic_tag: :AnyBIC, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_008_001_12 => { bic_tag: :BICFI, wrap_date: false, swiss: false, requires_bic: false,
-                         org_bic_tag: :AnyBIC, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_008_002_02 => { bic_tag: :BIC,   wrap_date: false, swiss: false, requires_bic: true,
-                         org_bic_tag: :BICOrBEI, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 },
-    PAIN_008_003_02 => { bic_tag: :BIC,   wrap_date: false, swiss: false, requires_bic: false,
-                         org_bic_tag: :BICOrBEI, instr_for_dbtr_agt_format: :text, regulatory_reporting_version: :v3 }
-  }.each_value(&:freeze).freeze
-
-  # Schemas that support LEI (Legal Entity Identifier) in FinInstnId and OrgId
-  LEI_SCHEMAS = [PAIN_001_001_09, PAIN_001_001_13, PAIN_008_001_08, PAIN_008_001_12].freeze
-
-  # Element order follows PostalAddress27 XSD sequence (the superset).
-  # Fields absent in older schemas are rejected by XSD validation.
-  POSTAL_ADDRESS_FIELDS = [
-    %i[CareOf care_of],
-    %i[Dept department],
-    %i[SubDept sub_department],
-    %i[StrtNm street_name],
-    %i[BldgNb building_number],
-    %i[BldgNm building_name],
-    %i[Flr floor],
-    %i[UnitNb unit_number],
-    %i[PstBx post_box],
-    %i[Room room],
-    %i[PstCd post_code],
-    %i[TwnNm town_name],
-    %i[TwnLctnNm town_location_name],
-    %i[DstrctNm district_name],
-    %i[CtrySubDvsn country_sub_division],
-    %i[Ctry country_code],
-    %i[AdrLine address_line1],
-    %i[AdrLine address_line2]
-  ].freeze
-
-  # Element order follows Contact13 XSD sequence (the superset).
-  # Fields absent in older schemas are rejected by XSD validation.
-  # Othr (OtherContact1) and PrefrdMtd are handled separately (complex/enum structures).
-  CONTACT_DETAILS_FIELDS = [
-    %i[NmPrfx name_prefix],
-    %i[Nm name],
-    %i[PhneNb phone_number],
-    %i[MobNb mobile_number],
-    %i[FaxNb fax_number],
-    %i[URLAdr url_address],
-    %i[EmailAdr email_address],
-    %i[EmailPurp email_purpose],
-    %i[JobTitl job_title],
-    %i[Rspnsblty responsibility],
-    %i[Dept department]
-  ].freeze
-
   class Message
     include ActiveModel::Validations
     include SchemaValidation
-    include XmlBuilder
 
-    attr_reader :account, :grouped_transactions
-    attr_accessor :initiation_source_name, :initiation_source_provider
+    # Overridden by subclasses; used to resolve profiles via country/version hints.
+    FAMILY = nil
+    # Root element inside <Document>. Overridden by subclasses.
+    XML_MAIN_TAG = nil
 
-    INITN_SRC_SCHEMAS = [PAIN_001_001_13].freeze
+    attr_reader :account, :grouped_transactions, :profile, :initiation_source_name
+    attr_accessor :initiation_source_provider
+
+    def initiation_source_name=(value)
+      if value && !profile.supports?(:initiation_source)
+        raise SEPA::ValidationError,
+              "[#{profile.id}] initiation_source_name is set but the profile does not support InitnSrc"
+      end
+
+      @initiation_source_name = value
+    end
 
     validates_presence_of :transactions
     validates_length_of :initiation_source_name, within: 1..140, allow_nil: true
@@ -98,20 +29,41 @@ module SEPA
       record.errors.add(:account, record.account.errors.full_messages) unless record.account.valid?
     end
 
-    class_attribute :account_class, :transaction_class, :xml_main_tag, :known_schemas, instance_writer: false
+    class_attribute :account_class, :transaction_class, instance_writer: false
 
-    # @param account_options [Hash] attributes for the debtor/creditor account (:name, :iban, :bic)
-    def initialize(account_options = {})
+    # @param profile [SEPA::Profile, nil] explicit profile object. Mutually
+    #   exclusive with `country:` and `version:`. Power-user path.
+    # @param country [Symbol, nil] country code of **the bank that will receive
+    #   and process this XML file** (not the beneficiary's bank). Resolves to
+    #   the country-specific profile via {ProfileRegistry.recommended}. Falls
+    #   back to the generic SEPA/EPC profile when the country has no dedicated
+    #   variant registered.
+    # @param version [Symbol] semantic version hint (`:latest`, `:v09`, `:v13`,
+    #   …). Defaults to `:latest`.
+    # @param account_options [Hash] attributes for the debtor/creditor account
+    #   (`:name`, `:iban`, `:bic`, …).
+    # @raise [ArgumentError] if `profile:` is mixed with `country:` / `version:`
+    # @raise [SEPA::UnsupportedVersionError] if the requested version is not
+    #   registered for the resolved country
+    def initialize(country: nil, version: :latest, profile: nil, **account_options)
+      @profile = resolve_profile(country: country, version: version, profile: profile)
       @grouped_transactions = {}
       @account = account_class.new(account_options)
+      validate_message_against_profile!
+      validate_account_against_profile!(@account)
     end
 
-    # Add a transaction to the message. The transaction is validated immediately.
-    # @param options [Hash] transaction attributes (see {Transaction} subclasses for valid keys)
+    # Add a transaction to the message. The transaction is validated both
+    # against its own ActiveModel rules and against the profile's
+    # `accept_transaction` lambda + extra validators.
+    #
+    # @param options [Hash] transaction attributes
     # @raise [SEPA::ValidationError] if the transaction is invalid
     def add_transaction(options)
       transaction = transaction_class.new(options)
       raise SEPA::ValidationError, transaction.errors.full_messages.join("\n") unless transaction.valid?
+
+      validate_transaction_against_profile!(transaction)
 
       group = transaction_group(transaction)
       @grouped_transactions[group] ||= []
@@ -124,26 +76,31 @@ module SEPA
       @transactions ||= grouped_transactions.values.flatten
     end
 
-    # Generate the SEPA XML document for the given schema.
-    # @param schema_name [String] one of {known_schemas} (defaults to the first)
+    # Generate the SEPA XML document using the profile provided at construction.
+    #
     # @return [String] UTF-8 encoded XML
     # @raise [SEPA::ValidationError] if the message or account is invalid
-    # @raise [SEPA::SchemaValidationError] if transactions are incompatible or XML fails XSD validation
-    def to_xml(schema_name = known_schemas.first)
+    # @raise [SEPA::SchemaValidationError] if the generated XML fails XSD validation
+    def to_xml
       raise SEPA::ValidationError, errors.full_messages.join("\n") unless valid?
-      raise SEPA::SchemaValidationError, "Incompatible with schema #{schema_name}!" unless schema_compatible?(schema_name)
 
-      xml_builder = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |builder|
-        builder.Document(xml_schema(schema_name)) do
-          builder.__send__(xml_main_tag) do
-            build_group_header(builder, schema_name)
-            build_payment_informations(builder, schema_name)
+      # Fail-safe against post-insertion mutations of the account or
+      # transactions (e.g. a caller flipping `currency` after adding).
+      validate_message_against_profile!
+      validate_account_against_profile!(@account)
+      transactions.each { |transaction| validate_transaction_against_profile!(transaction) }
+
+      doc = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |builder|
+        builder.Document(xml_namespace_attributes) do
+          builder.__send__(self.class::XML_MAIN_TAG) do
+            run_stages(profile.group_header_stages, builder)
+            run_stages(profile.payment_info_stages, builder)
           end
         end
       end
 
-      validate_final_document!(xml_builder.doc, schema_name)
-      xml_builder.to_xml
+      validate_final_document!(doc.doc, profile)
+      doc.to_xml
     end
 
     # @param selected_transactions [Array<Transaction>] subset to sum (defaults to all)
@@ -152,27 +109,6 @@ module SEPA
       selected_transactions.sum(&:amount)
     end
 
-    # Check if all transactions are compatible with the given schema.
-    # @param schema_name [String] one of {known_schemas}
-    # @return [Boolean]
-    # @raise [ArgumentError] if the schema is unknown
-    def schema_compatible?(schema_name)
-      raise ArgumentError, "Schema #{schema_name} is unknown!" unless known_schemas.include?(schema_name)
-
-      features = schema_features(schema_name)
-      return false if features[:requires_bic] && (account.bic.nil? || account.bic.empty?)
-      return false if @initiation_source_name && !INITN_SRC_SCHEMAS.include?(schema_name)
-      return false if account.agent_lei && !LEI_SCHEMAS.include?(schema_name)
-      return false if account.respond_to?(:initiating_party_lei) && account.initiating_party_lei && !LEI_SCHEMAS.include?(schema_name)
-
-      transactions.all? { |t| t.schema_compatible?(schema_name) }
-    end
-
-    # Set unique identifier for the message (max 35 chars, alphanumeric + punctuation).
-    # Validates and assigns immediately (fail-fast) rather than deferring to ActiveModel,
-    # because this field has a lazy default and must always be in a valid state once assigned.
-    # @param value [String] unique message ID (1-35 chars)
-    # @raise [ArgumentError] if value is not a valid string
     def message_identification=(value)
       raise ArgumentError, 'message_identification must be a string!' unless value.is_a?(String)
 
@@ -182,17 +118,10 @@ module SEPA
       @message_identification = value
     end
 
-    # @return [String] unique message identifier (auto-generated if not set)
     def message_identification
       @message_identification ||= "MSG/#{SecureRandom.hex(14)}"
     end
 
-    # Set creation date time for the message (ISO 8601 format).
-    # Validates and assigns immediately (fail-fast) rather than deferring to ActiveModel,
-    # because this field has a lazy default and must always be in a valid state once assigned.
-    # @note Rabobank (NL) only accepts the strict format YYYY-MM-DDTHH:MM:SS
-    # @param value [String] ISO 8601 datetime
-    # @raise [ArgumentError] if value does not match the expected format
     def creation_date_time=(value)
       raise ArgumentError, 'creation_date_time must be a string!' unless value.is_a?(String)
 
@@ -202,83 +131,145 @@ module SEPA
       @creation_date_time = value
     end
 
-    # @return [String] ISO 8601 creation datetime (auto-generated if not set)
     def creation_date_time
       @creation_date_time ||= Time.now.iso8601
     end
 
     # Find the PmtInf ID for the batch containing a transaction with the given reference.
-    # @param transaction_reference [String] the transaction's EndToEndId reference
-    # @return [String, nil] the payment information identification, or nil if not found
     def batch_id(transaction_reference)
       grouped_transactions.each do |group, transactions|
-        return payment_information_identification(group) if transactions.any? { |transaction| transaction.reference == transaction_reference }
+        return payment_information_identification(group) if transactions.any? { |t| t.reference == transaction_reference }
       end
       nil
     end
 
-    # @return [Array<String>] list of all PmtInf IDs in the message
     def batches
       grouped_transactions.keys.map { |group| payment_information_identification(group) }
     end
 
-    private
-
-    def schema_features(schema_name)
-      SCHEMA_FEATURES.fetch(schema_name) { raise ArgumentError, "Schema #{schema_name} is unknown!" }
-    end
-
-    # @return {Hash<Symbol=>String>} xml schema information used in output xml
-    def xml_schema(schema_name)
-      if schema_features(schema_name)[:swiss]
-        {
-          xmlns: 'http://www.six-interbank-clearing.com/de/pain.001.001.03.ch.02.xsd',
-          'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-          'xsi:schemaLocation': 'http://www.six-interbank-clearing.com/de/pain.001.001.03.ch.02.xsd  pain.001.001.03.ch.02.xsd'
-        }
-      else
-        {
-          xmlns: "urn:iso:std:iso:20022:tech:xsd:#{schema_name}",
-          'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-          'xsi:schemaLocation': "urn:iso:std:iso:20022:tech:xsd:#{schema_name} #{schema_name}.xsd"
-        }
-      end
-    end
-
-    def build_group_header(builder, schema_name)
-      builder.GrpHdr do
-        builder.MsgId(message_identification)
-        builder.CreDtTm(creation_date_time)
-        builder.NbOfTxs(transactions.length)
-        builder.CtrlSum(format_amount(amount_total))
-        builder.InitgPty do
-          builder.Nm(account.name)
-          account.initiating_party_id(builder, schema_name)
-          build_contact_details(builder, account.contact_details)
-        end
-        build_initiation_source(builder, schema_name)
-      end
-    end
-
-    # Unique and consecutive identifier (used for the <PmntInf> blocks)
+    # Unique and consecutive identifier for a <PmtInf> block, derived from
+    # `message_identification` + the group's position. Invoked by builder stages.
     def payment_information_identification(group)
       suffix = "/#{grouped_transactions.keys.index(group) + 1}"
       max_prefix_length = 35 - suffix.length
       "#{message_identification[0, max_prefix_length]}#{suffix}"
     end
 
-    # Returns a key to determine the group to which the transaction belongs
-    def transaction_group(transaction)
-      transaction
+    private
+
+    # Single entry point for validating a transaction against the message's
+    # profile. Called both from `add_transaction` (at insertion) and from
+    # `to_xml` (as a fail-safe against post-insertion mutations).
+    def validate_transaction_against_profile!(transaction)
+      # Validate the DD creditor_account override first — its specific error
+      # is more actionable than the generic "not compatible" fallback below.
+      if transaction.respond_to?(:creditor_account) && transaction.creditor_account
+        validate_account_against_profile!(transaction.creditor_account, label: 'creditor_account')
+      end
+
+      raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}" unless transaction.compatible_with?(profile)
+
+      validate_transaction_addresses_against_profile!(transaction)
+      run_profile_validators(transaction)
     end
 
-    def build_initiation_source(builder, schema_name)
-      return unless INITN_SRC_SCHEMAS.include?(schema_name) && @initiation_source_name
+    # Enforce message-level rules that don't belong to any specific account
+    # (e.g. `initiation_source_name` is an attribute of the pain.001 group
+    # header, not of the debtor/creditor account). Called both at
+    # construction and from `to_xml` as a fail-safe against late mutation.
+    def validate_message_against_profile!
+      return unless @initiation_source_name && !profile.supports?(:initiation_source)
 
-      builder.InitnSrc do
-        builder.Nm(@initiation_source_name)
-        builder.Prvdr(@initiation_source_provider) if @initiation_source_provider
+      raise SEPA::ValidationError,
+            "[#{profile.id}] initiation_source_name is set but the profile does not support InitnSrc"
+    end
+
+    # Enforce profile-level rules on any account (the message's own account,
+    # or a per-transaction `creditor_account` override in direct debit). The
+    # `label:` tweaks the error messages so the caller can tell which
+    # account failed.
+    def validate_account_against_profile!(account, label: 'account')
+      raise SEPA::ValidationError, "[#{profile.id}] #{label} is missing the required BIC" if profile.features.requires_bic && (account.bic.nil? || account.bic.empty?)
+
+      unless profile.supports?(:lei)
+        if account.agent_lei && !account.agent_lei.empty?
+          raise SEPA::ValidationError,
+                "[#{profile.id}] #{label}.agent_lei is set but the profile does not support LEI"
+        end
+        if account.respond_to?(:initiating_party_lei) &&
+           account.initiating_party_lei && !account.initiating_party_lei.empty?
+          raise SEPA::ValidationError,
+                "[#{profile.id}] #{label}.initiating_party_lei is set but the profile does not support LEI"
+        end
       end
+
+      assert_address_structured!(account.address, "#{label}.address")
+    end
+
+    # Transaction-level addresses (`creditor_address`, `debtor_address`) are
+    # serialised in `PmtInf/*/PstlAdr` and must satisfy the same structured
+    # requirement as the message account when the profile mandates it.
+    def validate_transaction_addresses_against_profile!(transaction)
+      return unless profile.features.requires_structured_address
+
+      assert_address_structured!(transaction.creditor_address, 'creditor_address') if transaction.respond_to?(:creditor_address)
+      return unless transaction.respond_to?(:debtor_address)
+
+      assert_address_structured!(transaction.debtor_address, 'debtor_address')
+    end
+
+    def assert_address_structured!(address, label)
+      return unless profile.features.requires_structured_address
+      return if address.nil?
+      return if address.structured?
+
+      raise SEPA::ValidationError,
+            "[#{profile.id}] #{label} must use structured fields " \
+            '(StrtNm, PstCd, TwnNm, …), not AdrLine'
+    end
+
+    # Resolves the (country, version, profile) triple to a single Profile.
+    # Passing `profile:` bypasses the country/version lookup entirely; the
+    # two are mutually exclusive.
+    def resolve_profile(country:, version:, profile:)
+      return ProfileRegistry.recommended(family: self.class::FAMILY, country: country, version: version) unless profile
+
+      raise ArgumentError, 'pass either `profile:` or `country:`/`version:`, not both' if country || version != :latest
+      raise ArgumentError, "expected SEPA::Profile, got #{profile.class}" unless profile.is_a?(Profile)
+      raise ArgumentError, "profile #{profile.id} is for #{profile.family}, not #{self.class::FAMILY}" unless profile.family == self.class::FAMILY
+
+      profile
+    end
+
+    def run_stages(stages, builder)
+      ctx = Builders::Context.new(
+        message: self,
+        profile: profile,
+        builder: builder,
+        transaction: nil,
+        group: nil
+      )
+      stages.each { |stage| stage.call(ctx) }
+    end
+
+    def xml_namespace_attributes
+      {
+        xmlns: profile.namespace,
+        'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        'xsi:schemaLocation': "#{profile.namespace} #{File.basename(profile.xsd_path)}"
+      }
+    end
+
+    def run_profile_validators(transaction)
+      profile.validators.each do |validator|
+        validator.validate(transaction, profile)
+      end
+    end
+
+    # @abstract Subclasses return a grouping key (Data struct) used to batch
+    #   transactions into separate PmtInf blocks.
+    def transaction_group(transaction)
+      transaction
     end
   end
 end

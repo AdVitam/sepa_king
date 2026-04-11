@@ -33,21 +33,57 @@ module SEPA
   end
 end
 
+# Default profiles used by factory helpers when a test does not specify one.
+DEFAULT_CT_PROFILE = SEPA::Profiles::ISO::SCT_03
+DEFAULT_DD_PROFILE = SEPA::Profiles::ISO::SDD_02
+
+# Profile matrices: used by specs to iterate a setup over every ISO variant.
+ALL_CT_PROFILES = [
+  SEPA::Profiles::ISO::SCT_03,
+  SEPA::Profiles::ISO::SCT_09,
+  SEPA::Profiles::ISO::SCT_13,
+  SEPA::Profiles::ISO::SCT_EPC_002_03,
+  SEPA::Profiles::ISO::SCT_EPC_003_03
+].freeze
+
+ALL_DD_PROFILES = [
+  SEPA::Profiles::ISO::SDD_02,
+  SEPA::Profiles::ISO::SDD_08,
+  SEPA::Profiles::ISO::SDD_12,
+  SEPA::Profiles::ISO::SDD_EPC_002_02,
+  SEPA::Profiles::ISO::SDD_EPC_003_02
+].freeze
+
+LEI_CT_PROFILES = [SEPA::Profiles::ISO::SCT_09, SEPA::Profiles::ISO::SCT_13].freeze
+LEI_DD_PROFILES = [SEPA::Profiles::ISO::SDD_08, SEPA::Profiles::ISO::SDD_12].freeze
+
 def credit_transfer_message(attributes = {})
-  SEPA::CreditTransfer.new({
-    name: SEPA::TestData::DEBTOR_NAME,
-    bic: SEPA::TestData::DEBTOR_BIC,
-    iban: SEPA::TestData::DEBTOR_IBAN
-  }.merge(attributes))
+  SEPA::CreditTransfer.new(profile: DEFAULT_CT_PROFILE,
+                           name: SEPA::TestData::DEBTOR_NAME,
+                           bic: SEPA::TestData::DEBTOR_BIC,
+                           iban: SEPA::TestData::DEBTOR_IBAN, **attributes)
 end
 
 def direct_debit_message(attributes = {})
-  SEPA::DirectDebit.new({
-    name: SEPA::TestData::CREDITOR_NAME,
-    bic: SEPA::TestData::DEBTOR_BIC,
-    iban: SEPA::TestData::DEBTOR_IBAN,
-    creditor_identifier: SEPA::TestData::CREDITOR_IDENTIFIER
-  }.merge(attributes))
+  SEPA::DirectDebit.new(profile: DEFAULT_DD_PROFILE,
+                        name: SEPA::TestData::CREDITOR_NAME,
+                        bic: SEPA::TestData::DEBTOR_BIC,
+                        iban: SEPA::TestData::DEBTOR_IBAN,
+                        creditor_identifier: SEPA::TestData::CREDITOR_IDENTIFIER, **attributes)
+end
+
+# Convenience helpers for the "build a fresh message with a block setup" pattern,
+# used by specs that assert the same transaction setup against multiple profiles.
+def build_ct(profile, account_attrs = {}, &setup)
+  sct = credit_transfer_message(profile: profile, **account_attrs)
+  setup&.call(sct)
+  sct
+end
+
+def build_dd(profile, account_attrs = {}, &setup)
+  sdd = direct_debit_message(profile: profile, **account_attrs)
+  setup&.call(sdd)
+  sdd
 end
 
 def credit_transfer_transaction(attributes = {})

@@ -83,6 +83,20 @@ module SEPA
       self.currency ||= 'EUR'
     end
 
+    # @return [Boolean] whether this transaction can be rendered under the
+    #   given profile. Delegates to `profile.accepts?` for profile-level rules
+    #   (e.g. EPC currency restrictions) and to `#compatible_capabilities?` for
+    #   capability-level checks (UETR, LEI, mandate info, …).
+    def compatible_with?(profile)
+      profile.accepts?(self) && compatible_capabilities?(profile)
+    end
+
+    # @abstract Subclasses override to check that fields requiring capabilities
+    #   (uetr, lei, etc.) are only set when the profile advertises them.
+    def compatible_capabilities?(_profile)
+      true
+    end
+
     protected
 
     # NOTE: This validation only checks that the date is not in the past.

@@ -66,5 +66,16 @@ module SEPA
     validates_length_of :country_sub_division, maximum: 35,  allow_nil: true
     validates_length_of :care_of,              maximum: 140, allow_nil: true
     validates_length_of :unit_number,          maximum: 16,  allow_nil: true
+
+    STRUCTURED_FIELDS = %i[street_name building_number post_code town_name].freeze
+
+    # Strict check: at least one structured field AND no AdrLine leak.
+    def structured?
+      STRUCTURED_FIELDS.any? { |field| public_send(field) } && !uses_address_lines?
+    end
+
+    def uses_address_lines?
+      !address_line1.nil? || !address_line2.nil?
+    end
   end
 end
