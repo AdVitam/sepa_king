@@ -6,7 +6,7 @@ class DummyTransaction < SEPA::Transaction
   def valid? = true
 end
 
-class DummyMessage < SEPA::Message # rubocop:disable Style/OneClassPerFile
+class DummyMessage < SEPA::Message
   self.account_class = SEPA::Account
   self.transaction_class = DummyTransaction
 end

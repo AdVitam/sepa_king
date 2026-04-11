@@ -6,6 +6,8 @@ require 'nokogiri'
 require 'ibandit'
 
 require 'sepa_rator/error'
+require 'sepa_rator/profile'
+require 'sepa_rator/builders/stage'
 require 'sepa_rator/converter'
 require 'sepa_rator/validator'
 require 'sepa_rator/nested_model_validator'
