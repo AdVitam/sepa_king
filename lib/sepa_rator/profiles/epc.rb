@@ -15,9 +15,11 @@ module SEPA
     # The SEPA character set is enforced at assignment time by the `Converter`
     # DSL (text sanitisation), so no dedicated validator is needed here.
     module EPC
+      # EPC rulebook requires SvcLvl=SEPA to be emitted explicitly in the XML,
+      # so `service_level` must be 'SEPA' (not just nil-or-SEPA).
       SCT_RULES = lambda do |txn, _profile|
         txn.currency == 'EUR' &&
-          (txn.service_level.nil? || txn.service_level == 'SEPA') &&
+          txn.service_level == 'SEPA' &&
           (txn.charge_bearer.nil? || txn.charge_bearer == 'SLEV')
       end
 

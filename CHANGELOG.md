@@ -10,6 +10,12 @@ Successor to [salesking/sepa_king](https://github.com/salesking/sepa_king) (unma
   `country:` / `version:` / `profile:` keyword arguments; `to_xml` takes
   no arguments. The string-based `to_xml('pain.001.001.09')` API is
   removed, along with `SEPA::PAIN_*` constants and `SCHEMA_FEATURES`.
+- Profile compatibility is enforced at `Message.new` (account vs. profile)
+  and `add_transaction` (transaction vs. profile). Previously some of
+  these checks ran only at `to_xml`. Callers must now catch
+  `SEPA::ValidationError` earlier in the flow. All profile-related errors
+  now raise `SEPA::ValidationError` (not `SEPA::SchemaValidationError`)
+  and carry `[profile.id]` in the message.
 - Transaction compatibility uses `Transaction#compatible_with?(profile)`
   instead of `schema_compatible?(schema_name)`.
 - Swiss variant (`pain.001.001.03.ch.02`) dropped.

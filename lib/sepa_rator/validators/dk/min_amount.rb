@@ -14,7 +14,8 @@ module SEPA
         def self.validate(transaction, profile)
           min = profile.features.min_amount
           return if min.nil?
-          return if transaction.amount && transaction.amount >= min
+          return if transaction.amount.nil? # caught upstream by validates_numericality_of
+          return if transaction.amount >= min
 
           raise SEPA::ValidationError,
                 "[#{profile.id}] amount #{format('%.2f', transaction.amount)} is below the " \

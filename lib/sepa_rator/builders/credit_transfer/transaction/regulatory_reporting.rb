@@ -40,21 +40,33 @@ module SEPA
             build_detail_type(detail, version)
             builder.Dt(detail[:date].iso8601) if detail[:date]
             builder.Ctry(detail[:country]) if detail[:country]
-            code_tag = version == :v10 ? :RptgCd : :Cd
-            builder.__send__(code_tag, detail[:code]) if detail[:code]
+            builder.__send__(code_tag_for(version), detail[:code]) if detail[:code]
             build_detail_amount(detail[:amount])
             Array(detail[:information]).each { |inf| builder.Inf(inf) }
+          end
+
+          def code_tag_for(version)
+            case version
+            when :v10 then :RptgCd
+            when :v3 then :Cd
+            else raise ArgumentError, "Unknown regulatory_reporting_version: #{version.inspect}"
+            end
           end
 
           def build_detail_type(detail, version)
             return unless detail[:type] || detail[:type_proprietary]
 
-            if version == :v10
+            case version
+            when :v10
               builder.Tp do
                 detail[:type_proprietary] ? builder.Prtry(detail[:type_proprietary]) : builder.Cd(detail[:type])
               end
-            elsif detail[:type]
-              builder.Tp(detail[:type])
+            when :v3
+              # `type_proprietary` is rejected upstream by
+              # CreditTransferTransaction#regulatory_reportings_compatible?.
+              builder.Tp(detail[:type]) if detail[:type]
+            else
+              raise ArgumentError, "Unknown regulatory_reporting_version: #{version.inspect}"
             end
           end
 

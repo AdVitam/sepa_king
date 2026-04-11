@@ -121,6 +121,34 @@ RSpec.describe SEPA::Profile do
       expect(derived.xsd_path).to eq 'dk/pain.001.001.09_AXZ_GBIC5.xsd'
       expect(derived.namespace).to eq 'dk://foo'
     end
+
+    it 'raises on an unknown stage-list operation instead of a cryptic pattern error' do
+      expect { base.with(transaction_stages: { replaces: stage_a, with: stage_c }) }
+        .to raise_error(ArgumentError, /unsupported operation/)
+    end
+
+    it 'raises on an unknown list Hash operation for capabilities' do
+      expect { base.with(capabilities: { replaced: %i[lei] }) }
+        .to raise_error(ArgumentError, /unsupported Hash operation/)
+    end
+
+    it 'raises on a non-Array, non-Hash list value' do
+      expect { base.with(capabilities: :uetr) }
+        .to raise_error(ArgumentError, /expected Array or Hash/)
+    end
+  end
+
+  describe '.new validation' do
+    it 'rejects an invalid family symbol' do
+      expect do
+        described_class.new(
+          id: 'bad', family: :cross_border, iso_schema: 'x', xsd_path: 'x', namespace: 'x',
+          features: SEPA::ProfileFeatures.default, validators: [].freeze, capabilities: [].freeze,
+          transaction_stages: [].freeze, payment_info_stages: [].freeze,
+          group_header_stages: [].freeze, accept_transaction: nil
+        )
+      end.to raise_error(ArgumentError, /invalid family :cross_border/)
+    end
   end
 end
 
@@ -210,6 +238,38 @@ RSpec.describe SEPA::ProfileRegistry do
     described_class.register(profile, aliases: %w[alias1 alias2])
     expect(described_class.all).to contain_exactly(profile)
   end
+
+  it 'is idempotent when the same Profile object is registered twice' do
+    described_class.register(profile)
+    expect { described_class.register(profile) }.not_to raise_error
+  end
+
+  it 'raises when a different profile is registered under an existing id' do
+    described_class.register(profile)
+    duplicate = profile.with(namespace: 'urn:other')
+    expect { described_class.register(duplicate) }
+      .to raise_error(ArgumentError, /already registered under id/)
+  end
+
+  describe '.set_country_default' do
+    let(:dd_profile) do
+      SEPA::Profile.new(
+        id: 'test.dd', family: :direct_debit, iso_schema: 'pain.008.001.08',
+        xsd_path: 'iso/pain.008.001.08.xsd', namespace: 'urn:test',
+        features: SEPA::ProfileFeatures.default, validators: [].freeze,
+        capabilities: [].freeze, transaction_stages: [].freeze,
+        payment_info_stages: [].freeze, group_header_stages: [].freeze,
+        accept_transaction: nil
+      )
+    end
+
+    it 'raises when the profile family does not match the requested family' do
+      expect do
+        described_class.set_country_default(family: :credit_transfer, country: :xx,
+                                            version: :latest, profile: dd_profile)
+      end.to raise_error(ArgumentError, /profile "test\.dd" is for family :direct_debit, not :credit_transfer/)
+    end
+  end
 end
 
 RSpec.describe SEPA::StageList do
@@ -231,6 +291,11 @@ RSpec.describe SEPA::StageList do
 
   it 'removes' do
     expect(described_class.merge([a, b], { remove: a })).to eq [b]
+  end
+
+  it 'raises on a typoed operation key' do
+    expect { described_class.merge([a, b], { replaces: a, with: c }) }
+      .to raise_error(ArgumentError, /unsupported operation/)
   end
 
   it 'replaces the whole list with an Array' do

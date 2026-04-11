@@ -7,7 +7,7 @@ module SEPA
         class Amount < Stage
           def call
             builder.InstdAmt(
-              format('%.2f', transaction.amount),
+              XmlBuilder.format_amount(transaction.amount),
               Ccy: transaction.currency
             )
           end

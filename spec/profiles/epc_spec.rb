@@ -39,6 +39,18 @@ RSpec.describe SEPA::Profiles::EPC do
         .to raise_error(SEPA::ValidationError, /not compatible/)
     end
 
+    it 'rejects a transaction re-validated with a nil service_level at to_xml (EPC requires explicit SEPA)' do
+      # CreditTransferTransaction#initialize defaults service_level to 'SEPA'
+      # for EUR transactions, so `add_transaction` would always see 'SEPA'
+      # on a fresh txn. The bypass we guard against is a post-insertion
+      # mutation that clears the field.
+      sct = SEPA::CreditTransfer.new(profile: profile, name: SEPA::TestData::DEBTOR_NAME,
+                                     bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN)
+      sct.add_transaction(credit_transfer_transaction)
+      sct.transactions.first.service_level = nil
+      expect { sct.to_xml }.to raise_error(SEPA::ValidationError, /not compatible/)
+    end
+
     it 'generates valid XML against the ISO v09 XSD' do
       sct = SEPA::CreditTransfer.new(profile: profile, name: SEPA::TestData::DEBTOR_NAME,
                                      bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN)

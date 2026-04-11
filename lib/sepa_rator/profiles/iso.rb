@@ -103,11 +103,13 @@ module SEPA
         )
       )
 
-      # EPC AOS rules for CT: EUR only, charge_bearer SLEV-or-nil, SEPA service level.
+      # EPC AOS rules for CT: EUR only, charge_bearer SLEV-or-nil, SEPA
+      # service level is required (not nullable — the EPC rulebook mandates
+      # an explicit SvcLvl=SEPA in the emitted XML).
       CT_EPC_RULES = lambda do |txn, _profile|
         (txn.charge_bearer.nil? || txn.charge_bearer == 'SLEV') &&
           txn.currency == 'EUR' &&
-          (txn.service_level.nil? || txn.service_level == 'SEPA')
+          txn.service_level == 'SEPA'
       end
 
       # pain.001.002.03 (EPC AOS — requires BIC, SEPA-only)

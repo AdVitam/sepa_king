@@ -548,6 +548,22 @@ RSpec.describe SEPA::CreditTransfer do
           end
         end
       end
+
+      it 'derives schemaLocation from File.basename(profile.xsd_path), not iso_schema' do
+        # Building the attribute directly so we don't need a real XSD file on
+        # disk. The real-world case is a DK GBIC5 profile whose xsd_path is
+        # `dk/pain.001.001.09_AXZ_GBIC5.xsd` — the header must advertise that
+        # filename, not `pain.001.001.09.xsd`.
+        profile = SEPA::Profiles::ISO::SCT_09.with(
+          id: 'test.dk.sct.09.gbic5',
+          xsd_path: 'dk/pain.001.001.09_AXZ_GBIC5.xsd'
+        )
+        sct = SEPA::CreditTransfer.new(profile: profile, name: SEPA::TestData::DEBTOR_NAME,
+                                       bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN)
+        attrs = sct.send(:xml_namespace_attributes)
+        expect(attrs[:'xsi:schemaLocation'])
+          .to eq('urn:iso:std:iso:20022:tech:xsd:pain.001.001.09 pain.001.001.09_AXZ_GBIC5.xsd')
+      end
     end
 
     context 'with potentially malicious input' do
@@ -798,9 +814,9 @@ RSpec.describe SEPA::CreditTransfer do
         expect(xml).to have_xml('//Document/CstmrCdtTrfInitn/GrpHdr/InitnSrc/Prvdr', 'Advitam')
       end
 
-      it 'is not emitted for v03' do
-        expect(build_ct(sct_03, &setup).to_xml)
-          .not_to have_xml('//Document/CstmrCdtTrfInitn/GrpHdr/InitnSrc')
+      it 'is rejected at assignment for v03 (InitnSrc is v13-only)' do
+        expect { build_ct(sct_03, &setup) }
+          .to raise_error(SEPA::ValidationError, /initiation_source_name.*does not support InitnSrc/)
       end
     end
 

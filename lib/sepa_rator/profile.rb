@@ -59,9 +59,16 @@ module SEPA
         old.flat_map { |existing| existing == klass ? [stage, existing] : [existing] }.freeze
       in { remove: klass }
         old.reject { |stage| stage == klass }.freeze
+      else
+        raise ArgumentError,
+              "StageList.merge: unsupported operation #{operation.inspect}. " \
+              'Expected an Array or one of: { replace:, with: }, { insert_after:, stage: }, ' \
+              '{ insert_before:, stage: }, { remove: }'
       end
     end
   end
+
+  PROFILE_FAMILIES = %i[credit_transfer direct_debit].freeze
 
   Profile = Data.define(
     :id,
@@ -77,6 +84,16 @@ module SEPA
     :group_header_stages,
     :accept_transaction
   ) do
+    def initialize(**attrs)
+      unless PROFILE_FAMILIES.include?(attrs[:family])
+        raise ArgumentError,
+              "Profile #{attrs[:id].inspect} has invalid family #{attrs[:family].inspect}; " \
+              "expected one of #{PROFILE_FAMILIES.inspect}"
+      end
+
+      super
+    end
+
     def supports?(capability)
       capabilities.include?(capability)
     end
@@ -109,26 +126,26 @@ module SEPA
       end
     end
 
-    # Merge helper for the flat list fields (`validators`, `capabilities`).
-    #
-    # - A raw Array is appended to the parent list (most common case — a
-    #   child profile extends its parent with more rules).
-    # - `{ replace: [...] }` drops the parent list and uses the new one —
-    #   required by tightened profiles like EPC AOS that need a stricter
-    #   set than their ISO parent.
-    # - `{ add: [...] }` is a more explicit synonym for "append".
+    # Array = append (common case), `{ replace: [...] }` = drop the parent
+    # list, `{ add: [...] }` = explicit append.
     def merge_list(old, value, unique:)
-      case value
-      when Array
-        combined = old + value
-      when Hash
+      combined =
         case value
-        in { replace: new }
-          combined = Array(new)
-        in { add: new }
-          combined = old + Array(new)
+        when Array
+          old + value
+        when Hash
+          case value
+          in { replace: new } then Array(new)
+          in { add: new } then old + Array(new)
+          else
+            raise ArgumentError,
+                  "merge_list: unsupported Hash operation #{value.inspect}. " \
+                  'Expected `{ replace: [...] }` or `{ add: [...] }`.'
+          end
+        else
+          raise ArgumentError,
+                "merge_list: expected Array or Hash, got #{value.class}"
         end
-      end
       (unique ? combined.uniq : combined).freeze
     end
   end
@@ -140,6 +157,10 @@ module SEPA
 
     class << self
       def register(profile, aliases: [])
+        if @profiles.key?(profile.id) && !@profiles[profile.id].equal?(profile)
+          raise ArgumentError, "A different profile is already registered under id #{profile.id.inspect}"
+        end
+
         @profiles[profile.id] = profile
         aliases.each { |name| @profiles[name.to_s] = profile }
         profile
@@ -158,6 +179,12 @@ module SEPA
       # Register a (family, country, version) → profile mapping used by
       # `Message.new(country:, version:)` to resolve the recommended profile.
       def set_country_default(family:, country:, version:, profile:)
+        unless profile.family == family
+          raise ArgumentError,
+                "set_country_default: profile #{profile.id.inspect} is for family " \
+                "#{profile.family.inspect}, not #{family.inspect}"
+        end
+
         @country_defaults[family] ||= {}
         @country_defaults[family][country] ||= {}
         @country_defaults[family][country][version] = profile
@@ -175,13 +202,15 @@ module SEPA
           raise ArgumentError, "Unknown family: #{family.inspect}"
         end
 
+        fallback_used = per_country[country].nil?
         versions = per_country[country] || per_country[nil]
         raise ArgumentError, "No default profiles registered for family=#{family.inspect}" unless versions
 
         versions.fetch(version) do
           raise SEPA::UnsupportedVersionError.new(
             country: country, version: version,
-            available_versions: versions.keys
+            available_versions: versions.keys,
+            fallback_used: fallback_used
           )
         end
       end

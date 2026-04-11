@@ -430,6 +430,28 @@ RSpec.describe SEPA::DirectDebit do
           expect(xml).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf[1]/Cdtr/Nm', SEPA::TestData::CREDITOR_NAME)
           expect(xml).to have_xml('//Document/CstmrDrctDbtInitn/PmtInf[2]/Cdtr/Nm', 'Creditor Inc.')
         end
+
+        it 'rejects a per-transaction creditor_account override that carries an LEI on a non-LEI profile' do
+          sdd = build_dd(sdd_02)
+          override = SEPA::CreditorAccount.new(
+            name: 'Creditor Inc.', bic: 'RABONL2U', iban: 'NL08RABO0135742099',
+            creditor_identifier: 'NL53ZZZ091734220000', agent_lei: SEPA::TestData::LEI
+          )
+          expect do
+            sdd.add_transaction(direct_debit_transaction.merge(creditor_account: override))
+          end.to raise_error(SEPA::ValidationError, /creditor_account\.agent_lei.*does not support LEI/)
+        end
+
+        it 'rejects a per-transaction creditor_account override that is missing a required BIC' do
+          sdd = build_dd(sdd_epc_002_02)
+          override = SEPA::CreditorAccount.new(
+            name: 'Creditor Inc.', iban: 'NL08RABO0135742099',
+            creditor_identifier: 'NL53ZZZ091734220000'
+          )
+          expect do
+            sdd.add_transaction(direct_debit_transaction.merge(creditor_account: override))
+          end.to raise_error(SEPA::ValidationError, /creditor_account is missing the required BIC/)
+        end
       end
 
       context 'with mandate amendments' do

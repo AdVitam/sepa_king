@@ -132,6 +132,11 @@ Supported version symbols:
 Requesting an unknown version raises `SEPA::UnsupportedVersionError` with
 the list of available versions.
 
+The older EPC AOS schemas (`pain.001.002.03`, `pain.001.003.03`,
+`pain.008.002.02`, `pain.008.003.02`) are not exposed through the
+`country:` / `version:` API — use Level 3 (explicit
+`SEPA::Profiles::ISO::*` constants) if you need them.
+
 ### Level 3 — explicit profile (power user)
 
 Pass a `SEPA::Profile` constant directly when you need a specific variant:

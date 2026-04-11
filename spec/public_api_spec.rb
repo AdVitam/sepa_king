@@ -62,6 +62,36 @@ RSpec.describe 'Public API: country / version / profile' do
       expect(err.country).to eq :fr
       expect(err.version).to eq :v42
       expect(err.available_versions).to include(:latest, :v09, :v13)
+      expect(err.fallback_used).to be false
+    end
+
+    it 'raises UnsupportedVersionError with fallback_used=true when a fallback country hits an unknown version' do
+      err = nil
+      begin
+        SEPA::CreditTransfer.new(country: :it, version: :v99, **account_attrs)
+      rescue SEPA::UnsupportedVersionError => e
+        err = e
+      end
+      expect(err).not_to be_nil
+      expect(err.country).to eq :it
+      expect(err.fallback_used).to be true
+      expect(err.message).to include('generic SEPA versions', ':it')
+    end
+
+    it 'raises with fallback_used=false when a dedicated country hits an unknown version' do
+      err = nil
+      begin
+        SEPA::DirectDebit.new(country: :de, version: :v99, **creditor_attrs)
+      rescue SEPA::UnsupportedVersionError => e
+        err = e
+      end
+      expect(err).not_to be_nil
+      expect(err.fallback_used).to be false
+    end
+
+    it 'resolves country: :it (no dedicated profile) + version: :v09 to the generic EPC SCT_09' do
+      sct = SEPA::CreditTransfer.new(country: :it, version: :v09, **account_attrs)
+      expect(sct.profile).to equal(SEPA::Profiles::EPC::SCT_09)
     end
   end
 

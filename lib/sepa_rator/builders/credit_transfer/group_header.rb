@@ -3,9 +3,10 @@
 module SEPA
   module Builders
     module CreditTransfer
-      # Emits the top-level GrpHdr block. Shared verbatim between Credit
-      # Transfer and Direct Debit; we keep two separate classes so that a
-      # country variant can replace one without touching the other.
+      # Emits the top-level GrpHdr block for pain.001 messages. Distinct
+      # from the DirectDebit variant because Credit Transfer adds the
+      # `InitnSrc` element (pain.001.001.13 only, gated on the
+      # `:initiation_source` capability).
       class GroupHeader < Stage
         def call
           builder.GrpHdr do

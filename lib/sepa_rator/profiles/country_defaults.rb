@@ -2,23 +2,9 @@
 
 module SEPA
   module Profiles
-    # Maps (family, country, version) triples to the recommended profile.
-    #
-    # The `country: nil` entries are the fallback for any country that does
-    # not have dedicated profiles registered (e.g. Italy, Spain, Belgium,
-    # …). Those callers automatically get generic EPC SEPA profiles.
-    #
-    # Supported symbols:
-    #
-    #   family  => :credit_transfer | :direct_debit
-    #   country => nil | :fr | :de | …
-    #   version => :latest | :v09 | :v13 | :v08 | :v12 | …
-    #
-    # Usage (from `Message#initialize`):
-    #
-    #   SEPA::CreditTransfer.new(country: :fr, version: :latest, ...)
-    #
-    # resolves to `SEPA::Profiles::CFONB::SCT_13` via `ProfileRegistry.recommended`.
+    # Maps `(family, country, version)` triples to the recommended profile.
+    # `country: nil` holds the generic EPC fallback used for countries
+    # without dedicated profiles.
     module CountryDefaults
       R = ProfileRegistry
 

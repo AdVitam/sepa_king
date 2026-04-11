@@ -10,8 +10,17 @@ module SEPA
     # Root element inside <Document>. Overridden by subclasses.
     XML_MAIN_TAG = nil
 
-    attr_reader :account, :grouped_transactions, :profile
-    attr_accessor :initiation_source_name, :initiation_source_provider
+    attr_reader :account, :grouped_transactions, :profile, :initiation_source_name
+    attr_accessor :initiation_source_provider
+
+    def initiation_source_name=(value)
+      if value && !profile.supports?(:initiation_source)
+        raise SEPA::ValidationError,
+              "[#{profile.id}] initiation_source_name is set but the profile does not support InitnSrc"
+      end
+
+      @initiation_source_name = value
+    end
 
     validates_presence_of :transactions
     validates_length_of :initiation_source_name, within: 1..140, allow_nil: true
@@ -40,7 +49,8 @@ module SEPA
       @profile = resolve_profile(country: country, version: version, profile: profile)
       @grouped_transactions = {}
       @account = account_class.new(account_options)
-      validate_account_against_profile!
+      validate_message_against_profile!
+      validate_account_against_profile!(@account)
     end
 
     # Add a transaction to the message. The transaction is validated both
@@ -52,6 +62,14 @@ module SEPA
     def add_transaction(options)
       transaction = transaction_class.new(options)
       raise SEPA::ValidationError, transaction.errors.full_messages.join("\n") unless transaction.valid?
+
+      # DD transactions can override the PmtInf creditor. Validate the
+      # override against the profile first so a bad BIC/LEI surfaces with
+      # the specific message from `validate_account_against_profile!`
+      # instead of the generic "not compatible" from `compatible_with?`.
+      if transaction.respond_to?(:creditor_account) && transaction.creditor_account
+        validate_account_against_profile!(transaction.creditor_account, label: 'creditor_account')
+      end
 
       raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}" unless transaction.compatible_with?(profile)
 
@@ -78,11 +96,14 @@ module SEPA
 
       # Fail-safe against post-insertion mutations of the account or
       # transactions (e.g. a caller flipping `currency` after adding).
-      validate_account_against_profile!
+      validate_message_against_profile!
+      validate_account_against_profile!(@account)
       transactions.each do |transaction|
-        next if transaction.compatible_with?(profile)
+        raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}" unless transaction.compatible_with?(profile)
 
-        raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}"
+        if transaction.respond_to?(:creditor_account) && transaction.creditor_account
+          validate_account_against_profile!(transaction.creditor_account, label: 'creditor_account')
+        end
       end
 
       doc = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |builder|
@@ -152,23 +173,33 @@ module SEPA
 
     private
 
-    # Enforce profile-level rules that apply to the message account (as
-    # opposed to per-transaction rules, which run inside `add_transaction`).
-    # Running these checks at construction time means callers get the same
-    # fail-fast guarantee they'd get from `add_transaction`: if the account
-    # is incompatible with the profile, the Message cannot be instantiated.
-    def validate_account_against_profile!
-      raise SEPA::ValidationError, "[#{profile.id}] account is missing the required BIC" if profile.features.requires_bic && (account.bic.nil? || account.bic.empty?)
+    # Enforce message-level rules that don't belong to any specific account
+    # (e.g. `initiation_source_name` is an attribute of the pain.001 group
+    # header, not of the debtor/creditor account). Called both at
+    # construction and from `to_xml` as a fail-safe against late mutation.
+    def validate_message_against_profile!
+      return unless @initiation_source_name && !profile.supports?(:initiation_source)
+
+      raise SEPA::ValidationError,
+            "[#{profile.id}] initiation_source_name is set but the profile does not support InitnSrc"
+    end
+
+    # Enforce profile-level rules on any account (the message's own account,
+    # or a per-transaction `creditor_account` override in direct debit). The
+    # `label:` tweaks the error messages so the caller can tell which
+    # account failed.
+    def validate_account_against_profile!(account, label: 'account')
+      raise SEPA::ValidationError, "[#{profile.id}] #{label} is missing the required BIC" if profile.features.requires_bic && (account.bic.nil? || account.bic.empty?)
 
       unless profile.supports?(:lei)
         if account.agent_lei && !account.agent_lei.empty?
           raise SEPA::ValidationError,
-                "[#{profile.id}] account.agent_lei is set but the profile does not support LEI"
+                "[#{profile.id}] #{label}.agent_lei is set but the profile does not support LEI"
         end
         if account.respond_to?(:initiating_party_lei) &&
            account.initiating_party_lei && !account.initiating_party_lei.empty?
           raise SEPA::ValidationError,
-                "[#{profile.id}] account.initiating_party_lei is set but the profile does not support LEI"
+                "[#{profile.id}] #{label}.initiating_party_lei is set but the profile does not support LEI"
         end
       end
 
@@ -177,7 +208,7 @@ module SEPA
       return if account.address.structured?
 
       raise SEPA::ValidationError,
-            "[#{profile.id}] account.address must use structured fields " \
+            "[#{profile.id}] #{label}.address must use structured fields " \
             '(StrtNm, PstCd, TwnNm, …), not AdrLine'
     end
 
@@ -209,7 +240,7 @@ module SEPA
       {
         xmlns: profile.namespace,
         'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-        'xsi:schemaLocation': "#{profile.namespace} #{profile.iso_schema}.xsd"
+        'xsi:schemaLocation': "#{profile.namespace} #{File.basename(profile.xsd_path)}"
       }
     end
 

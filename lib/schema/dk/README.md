@@ -11,8 +11,8 @@ structured addresses, restricted code lists). They are distributed by
 <https://www.ebics.de/de/datenformate/ergaenzende-dokumente> and licensed by
 DK — we do not vendor them in this gem.
 
-The profiles under `lib/sepa_rator/profiles/dk.rb` currently reference the
-ISO baseline XSDs (via `xsd_path: "iso/pain.*.xsd"`). To wire up the real DK
+The profiles under `lib/sepa_rator/profiles/dk.rb` inherit the `xsd_path` of
+their EPC parent, which points at `iso/pain.*.xsd`. To wire up the real DK
 XSDs in production:
 
 1. Download the files from the DK site above.

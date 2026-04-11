@@ -51,8 +51,12 @@ module SEPA
 
     def initialize(attributes = {})
       super
-      # EPC legacy default: SEPA service level for EUR transactions.
-      # Will move to an EPC profile validator once the EPC profile is introduced.
+      # Ergonomic default: EUR transactions get SvcLvl=SEPA unless the
+      # caller overrides it. EPC profiles require SvcLvl to be emitted
+      # explicitly, and the alternative (URGP) is rare enough that callers
+      # who want it set it explicitly. Profiles that forbid SEPA (e.g.
+      # future non-EPC SEPA-zone profiles) can still override via a
+      # transaction-level nil assignment.
       self.service_level ||= 'SEPA' if currency == 'EUR'
     end
 
@@ -102,11 +106,14 @@ module SEPA
     def valid_instruction_code?(code, profile)
       return true unless code
 
-      case profile.features.instr_for_cdtr_agt_code_type
+      type = profile.features.instr_for_cdtr_agt_code_type
+      case type
       when :external_code
         code.to_s.length.between?(1, 4)
       when :instruction3_code
         INSTRUCTION3_CODES.include?(code)
+      else
+        raise ArgumentError, "Unknown instr_for_cdtr_agt_code_type: #{type.inspect}"
       end
     end
 

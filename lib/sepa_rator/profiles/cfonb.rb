@@ -4,8 +4,8 @@ module SEPA
   module Profiles
     # CFONB (Comité Français d'Organisation et de Normalisation Bancaires)
     # profiles. French banks follow the EPC SEPA rulebook and add their own
-    # implementation guidelines on top — the CFONB guide v2.6 applies to
-    # pain.001.001.03/09 and pain.008.001.02/08.
+    # implementation guidelines on top — the CFONB guide v2.6 covers
+    # pain.001.001.09, pain.001.001.13, pain.008.001.08 and pain.008.001.12.
     #
     # CFONB profiles inherit everything from EPC (XSD, stages, capabilities,
     # SEPA rules) and layer on French business rules:
