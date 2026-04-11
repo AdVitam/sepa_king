@@ -34,7 +34,10 @@ module SEPA
     end
 
     def [](key)
-      respond_to?(key) ? public_send(key) : extras[key]
+      return public_send(key) if respond_to?(key)
+      return extras.fetch(key) if extras.key?(key)
+
+      raise KeyError, "Unknown feature key: #{key.inspect}"
     end
 
     def merge(**overrides)
@@ -90,6 +93,12 @@ module SEPA
               "Profile #{attrs[:id].inspect} has invalid family #{attrs[:family].inspect}; " \
               "expected one of #{PROFILE_FAMILIES.inspect}"
       end
+
+      # Freeze collection fields so a caller cannot mutate a registered
+      # profile's arrays under our feet. Individual stages/validators are
+      # classes (already immutable by reference).
+      %i[validators capabilities transaction_stages payment_info_stages group_header_stages]
+        .each { |key| attrs[key] = attrs[key].dup.freeze unless attrs[key].frozen? }
 
       super
     end
@@ -154,6 +163,11 @@ module SEPA
     @profiles = {}
     # Nested map: { family => { country_symbol_or_nil => { version_symbol => profile } } }
     @country_defaults = {}
+    # Allow-list of SEPA-zone country codes accepted by `Message.new(country:)`.
+    # Countries without a dedicated profile still fall back to the generic EPC
+    # defaults, but a typo (e.g. `:fre`) raises `UnknownCountryError` instead
+    # of silently using the fallback.
+    @known_countries = Set.new
 
     class << self
       def register(profile, aliases: [])
@@ -176,6 +190,17 @@ module SEPA
         @profiles.values.uniq
       end
 
+      # Register one or more country codes as valid inputs to
+      # `Message.new(country:)`. Must be called from country_defaults.rb so
+      # that the allow-list is populated before any Message is constructed.
+      def register_countries(*codes)
+        codes.each { |code| @known_countries << code }
+      end
+
+      def known_country?(code)
+        code.nil? || @known_countries.include?(code)
+      end
+
       # Register a (family, country, version) → profile mapping used by
       # `Message.new(country:, version:)` to resolve the recommended profile.
       def set_country_default(family:, country:, version:, profile:)
@@ -187,17 +212,28 @@ module SEPA
 
         @country_defaults[family] ||= {}
         @country_defaults[family][country] ||= {}
+        if @country_defaults[family][country].key?(version) &&
+           !@country_defaults[family][country][version].equal?(profile)
+          raise ArgumentError,
+                "set_country_default: (#{family.inspect}, #{country.inspect}, #{version.inspect}) " \
+                "already maps to #{@country_defaults[family][country][version].id.inspect}"
+        end
+
         @country_defaults[family][country][version] = profile
       end
 
       # Resolve a (family, country, version) triple to the recommended profile.
       # Falls back to the generic `country: nil` entry when the requested
-      # country has no specific profiles registered.
+      # country is a known SEPA country without a dedicated profile.
       #
       # @raise [ArgumentError] when the family is unknown
+      # @raise [SEPA::UnknownCountryError] when the country is not in the
+      #   SEPA allow-list (catches typos)
       # @raise [SEPA::UnsupportedVersionError] when the version is unknown for
       #   the resolved country
       def recommended(family:, country: nil, version: :latest)
+        raise SEPA::UnknownCountryError.new(country: country, known_countries: @known_countries.to_a) unless known_country?(country)
+
         per_country = @country_defaults.fetch(family) do
           raise ArgumentError, "Unknown family: #{family.inspect}"
         end

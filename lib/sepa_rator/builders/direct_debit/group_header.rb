@@ -3,7 +3,6 @@
 module SEPA
   module Builders
     module DirectDebit
-      # Emits the top-level GrpHdr block for pain.008 messages.
       class GroupHeader < Stage
         def call
           builder.GrpHdr do

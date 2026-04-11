@@ -417,8 +417,10 @@ sct.initiation_source_name = 'MyPaymentApp'
 sct.initiation_source_provider = 'Advitam'
 ```
 
-Profiles that do not advertise the `:initiation_source` capability silently
-drop these fields from the generated XML.
+Assigning `initiation_source_name` on a profile that does not advertise
+the `:initiation_source` capability raises `SEPA::ValidationError` at the
+setter — use `SEPA::Profiles::ISO::SCT_13` or a compatible country
+profile if you need this element.
 
 ---
 

@@ -4,7 +4,6 @@ module SEPA
   module Builders
     module DirectDebit
       module Transaction
-        # DrctDbtTx block: MndtRltdInf with mandate data and optional amendment info.
         class DirectDebitInfo < Stage
           def call
             builder.DrctDbtTx do

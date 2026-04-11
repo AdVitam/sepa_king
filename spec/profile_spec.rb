@@ -270,6 +270,39 @@ RSpec.describe SEPA::ProfileRegistry do
       end.to raise_error(ArgumentError, /profile "test\.dd" is for family :direct_debit, not :credit_transfer/)
     end
   end
+
+  describe '.recommended' do
+    # Save/restore the two registry maps this describe block mutates.
+    around do |example|
+      saved_defaults = described_class.instance_variable_get(:@country_defaults)
+      saved_known = described_class.instance_variable_get(:@known_countries)
+      example.run
+    ensure
+      described_class.instance_variable_set(:@country_defaults, saved_defaults)
+      described_class.instance_variable_set(:@known_countries, saved_known)
+    end
+
+    it 'raises ArgumentError for an unknown family' do
+      expect do
+        SEPA::ProfileRegistry.recommended(family: :cross_border, country: :fr)
+      end.to raise_error(ArgumentError, /Unknown family: :cross_border/)
+    end
+
+    it 'raises ArgumentError when the family has no default profiles registered at all' do
+      # Synthetic defaults: only :credit_transfer is populated, :fr has an
+      # entry, but no :nil fallback. Querying country :xx (in the
+      # allow-list but not in the per-country hash) falls through to nil
+      # which is also absent → "No default profiles registered".
+      described_class.instance_variable_set(
+        :@country_defaults, credit_transfer: { fr: { latest: :dummy } }
+      )
+      described_class.instance_variable_set(:@known_countries, Set.new(%i[fr xx]))
+
+      expect do
+        SEPA::ProfileRegistry.recommended(family: :credit_transfer, country: :xx)
+      end.to raise_error(ArgumentError, /No default profiles registered for family=:credit_transfer/)
+    end
+  end
 end
 
 RSpec.describe SEPA::StageList do

@@ -3,10 +3,8 @@
 module SEPA
   # Collection of stateless helpers used by builder stages to emit common
   # XML fragments (addresses, contacts, agent BIC, remittance info, etc.).
-  #
-  # All helpers are profile-aware: rather than branching on a schema name,
-  # they consult `profile.features` and `profile.supports?(...)` so the same
-  # helper renders correctly for every supported ISO 20022 variant.
+  # Most helpers are data-only; `build_agent_bic` is the exception that
+  # takes a profile to select the right BIC tag and LEI emission.
   module XmlBuilder
     module_function
 

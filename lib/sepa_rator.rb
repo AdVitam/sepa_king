@@ -60,7 +60,6 @@ require 'sepa_rator/message/direct_debit'
 require 'sepa_rator/message/credit_transfer'
 
 # Profile validators (national rules) — loaded before profiles that use them.
-require 'sepa_rator/validators/cfonb/structured_address'
 require 'sepa_rator/validators/dk/min_amount'
 
 # Profiles — loaded last, after message/transaction classes and stages.

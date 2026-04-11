@@ -20,7 +20,6 @@ module SEPA
 
     private
 
-    # Groups transactions sharing the same PmtInf-level attributes.
     def transaction_group(transaction)
       CreditTransferGroup.new(
         requested_date: transaction.requested_date,

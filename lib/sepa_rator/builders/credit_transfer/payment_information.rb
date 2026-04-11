@@ -3,9 +3,6 @@
 module SEPA
   module Builders
     module CreditTransfer
-      # Walks the message's grouped transactions and emits one PmtInf block
-      # per group, then delegates to the profile's transaction_stages for the
-      # individual CdtTrfTxInf elements.
       class PaymentInformation < Stage
         def call
           message.grouped_transactions.each do |group, transactions|

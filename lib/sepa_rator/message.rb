@@ -73,6 +73,7 @@ module SEPA
 
       raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}" unless transaction.compatible_with?(profile)
 
+      validate_transaction_addresses_against_profile!(transaction)
       run_profile_validators(transaction)
 
       group = transaction_group(transaction)
@@ -104,6 +105,8 @@ module SEPA
         if transaction.respond_to?(:creditor_account) && transaction.creditor_account
           validate_account_against_profile!(transaction.creditor_account, label: 'creditor_account')
         end
+        validate_transaction_addresses_against_profile!(transaction)
+        run_profile_validators(transaction)
       end
 
       doc = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |builder|
@@ -203,12 +206,28 @@ module SEPA
         end
       end
 
+      assert_address_structured!(account.address, "#{label}.address")
+    end
+
+    # Transaction-level addresses (`creditor_address`, `debtor_address`) are
+    # serialised in `PmtInf/*/PstlAdr` and must satisfy the same structured
+    # requirement as the message account when the profile mandates it.
+    def validate_transaction_addresses_against_profile!(transaction)
       return unless profile.features.requires_structured_address
-      return if account.address.nil?
-      return if account.address.structured?
+
+      assert_address_structured!(transaction.creditor_address, 'creditor_address') if transaction.respond_to?(:creditor_address)
+      return unless transaction.respond_to?(:debtor_address)
+
+      assert_address_structured!(transaction.debtor_address, 'debtor_address')
+    end
+
+    def assert_address_structured!(address, label)
+      return unless profile.features.requires_structured_address
+      return if address.nil?
+      return if address.structured?
 
       raise SEPA::ValidationError,
-            "[#{profile.id}] #{label}.address must use structured fields " \
+            "[#{profile.id}] #{label} must use structured fields " \
             '(StrtNm, PstCd, TwnNm, …), not AdrLine'
     end
 

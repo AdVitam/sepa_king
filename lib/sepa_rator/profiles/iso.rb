@@ -8,6 +8,7 @@ module SEPA
     module ISO
       CT_STAGE = Builders::CreditTransfer::Transaction
       DD_STAGE = Builders::DirectDebit::Transaction
+      private_constant :CT_STAGE, :DD_STAGE
 
       # XSD element order: PmtId → Amt → [MndtRltdInf] → [UltmtDbtr] → [CdtrAgt] →
       #   [Cdtr] → [CdtrAcct] → [UltmtCdtr] → [InstrForCdtrAgt] →

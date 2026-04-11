@@ -3,11 +3,14 @@
 module SEPA
   module Profiles
     # EPC (European Payments Council) SEPA profiles. These reuse the ISO XSDs
-    # but tighten them with the EPC rulebook:
+    # but tighten them with the EPC rulebook (EUR only, explicit SvcLvl=SEPA,
+    # charge bearer SLEV, CORE/B2B local instrument for SDD).
     #
-    # - currency must be EUR
-    # - service level, if set, must be SEPA (not URGP)
-    # - charge bearer, if set, must be SLEV
+    # The acceptance lambdas themselves live in `ISO::CT_EPC_RULES` and
+    # `ISO::DD_EPC_RULES` (defined first in load order) — we simply reuse
+    # them here so a bugfix in one place flows to both the ISO AOS variants
+    # (`pain.001.002.03`, `pain.001.003.03`, …) and the EPC-flavoured
+    # wrappers around pain.001.001.09/.13 and pain.008.001.08/.12.
     #
     # EPC sits between ISO and the national layers (CFONB, DK/DFÜ). Country
     # profiles that carry SEPA semantics compose from EPC, not from ISO.
@@ -15,38 +18,24 @@ module SEPA
     # The SEPA character set is enforced at assignment time by the `Converter`
     # DSL (text sanitisation), so no dedicated validator is needed here.
     module EPC
-      # EPC rulebook requires SvcLvl=SEPA to be emitted explicitly in the XML,
-      # so `service_level` must be 'SEPA' (not just nil-or-SEPA).
-      SCT_RULES = lambda do |txn, _profile|
-        txn.currency == 'EUR' &&
-          txn.service_level == 'SEPA' &&
-          (txn.charge_bearer.nil? || txn.charge_bearer == 'SLEV')
-      end
-
-      SDD_RULES = lambda do |txn, _profile|
-        txn.currency == 'EUR' &&
-          (txn.charge_bearer.nil? || txn.charge_bearer == 'SLEV') &&
-          %w[CORE B2B].include?(txn.local_instrument)
-      end
-
       # ─── SEPA Credit Transfer ────────────────────────────────────────────
 
       SCT_09 = ProfileRegistry.register(
-        ISO::SCT_09.with(id: 'epc.sct.09', accept_transaction: SCT_RULES)
+        ISO::SCT_09.with(id: 'epc.sct.09', accept_transaction: ISO::CT_EPC_RULES)
       )
 
       SCT_13 = ProfileRegistry.register(
-        ISO::SCT_13.with(id: 'epc.sct.13', accept_transaction: SCT_RULES)
+        ISO::SCT_13.with(id: 'epc.sct.13', accept_transaction: ISO::CT_EPC_RULES)
       )
 
       # ─── SEPA Direct Debit ───────────────────────────────────────────────
 
       SDD_08 = ProfileRegistry.register(
-        ISO::SDD_08.with(id: 'epc.sdd.08', accept_transaction: SDD_RULES)
+        ISO::SDD_08.with(id: 'epc.sdd.08', accept_transaction: ISO::DD_EPC_RULES)
       )
 
       SDD_12 = ProfileRegistry.register(
-        ISO::SDD_12.with(id: 'epc.sdd.12', accept_transaction: SDD_RULES)
+        ISO::SDD_12.with(id: 'epc.sdd.12', accept_transaction: ISO::DD_EPC_RULES)
       )
     end
   end

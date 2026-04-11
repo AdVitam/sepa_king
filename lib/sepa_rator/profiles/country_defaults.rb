@@ -4,9 +4,21 @@ module SEPA
   module Profiles
     # Maps `(family, country, version)` triples to the recommended profile.
     # `country: nil` holds the generic EPC fallback used for countries
-    # without dedicated profiles.
+    # without dedicated profiles. Countries not in the allow-list raise
+    # `SEPA::UnknownCountryError` — the allow-list catches typos like
+    # `:fre` instead of `:fr` which would otherwise silently fall back.
     module CountryDefaults
       R = ProfileRegistry
+
+      # SEPA zone as of 2026 — EEA members plus non-EU participants
+      # (CH, GB, MC, SM, AD, VA). Countries in this list but without
+      # dedicated profiles inherit the generic EPC fallback.
+      SEPA_COUNTRIES = %i[
+        at be bg hr cy cz dk ee fi fr de gr hu ie is it lv li lt lu mt nl no pl
+        pt ro sk si es se ad mc sm va ch gb
+      ].freeze
+
+      R.register_countries(*SEPA_COUNTRIES)
 
       # ── Default fallback (generic SEPA — EPC) ──────────────────────────
 

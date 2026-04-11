@@ -28,7 +28,7 @@ RSpec.describe SEPA::Profiles::CFONB do
                                           address_line2: '75001 Paris')
       expect do
         sct.add_transaction(credit_transfer_transaction(creditor_address: address))
-      end.to raise_error(SEPA::ValidationError, /structured fields.*CFONB/)
+      end.to raise_error(SEPA::ValidationError, /must use structured fields/)
     end
 
     it 'accepts a transaction whose creditor address uses structured fields' do
@@ -111,7 +111,7 @@ RSpec.describe SEPA::Profiles::CFONB do
                                         address_line2: '75001 Paris')
       expect do
         sdd.add_transaction(direct_debit_transaction(debtor_address: address))
-      end.to raise_error(SEPA::ValidationError, /structured fields.*CFONB/)
+      end.to raise_error(SEPA::ValidationError, /must use structured fields/)
     end
 
     it 'accepts a structured debtor address' do

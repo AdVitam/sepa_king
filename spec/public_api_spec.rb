@@ -38,6 +38,24 @@ RSpec.describe 'Public API: country / version / profile' do
       sct = SEPA::CreditTransfer.new(country: :it, **account_attrs)
       expect(sct.profile).to equal(SEPA::Profiles::EPC::SCT_13)
     end
+
+    it 'raises UnknownCountryError on a typoed country symbol' do
+      err = nil
+      begin
+        SEPA::CreditTransfer.new(country: :fre, **account_attrs) # typo for :fr
+      rescue SEPA::UnknownCountryError => e
+        err = e
+      end
+      expect(err).not_to be_nil
+      expect(err.country).to eq :fre
+      expect(err.known_countries).to include(:fr, :de, :it, :es)
+      expect(err.message).to include(':fre', 'Known SEPA countries')
+    end
+
+    it 'accepts country: nil explicitly' do
+      sct = SEPA::CreditTransfer.new(country: nil, **account_attrs)
+      expect(sct.profile).to equal(SEPA::Profiles::EPC::SCT_13)
+    end
   end
 
   describe 'Level 2 — country + version' do
