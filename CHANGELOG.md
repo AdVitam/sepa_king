@@ -2,6 +2,38 @@
 
 Successor to [salesking/sepa_king](https://github.com/salesking/sepa_king) (unmaintained since 2022).
 
+## [1.0.0] - 2026-04-11
+
+### Breaking
+
+- `SEPA::CreditTransfer.new` / `SEPA::DirectDebit.new` now take
+  `country:` / `version:` / `profile:` keyword arguments; `to_xml` takes
+  no arguments. The string-based `to_xml('pain.001.001.09')` API is
+  removed, along with `SEPA::PAIN_*` constants and `SCHEMA_FEATURES`.
+- Transaction compatibility uses `Transaction#compatible_with?(profile)`
+  instead of `schema_compatible?(schema_name)`.
+- Swiss variant (`pain.001.001.03.ch.02`) dropped.
+- `SEPA::XmlBuilder` is now a stateless helper module (`module_function`)
+  taking explicit arguments; consumers can no longer mix it in.
+- XSDs moved from `lib/schema/pain.*.xsd` to `lib/schema/iso/pain.*.xsd`.
+
+### Added
+
+- `SEPA::Profile` value object and `SEPA::ProfileRegistry` — profiles
+  describe a full variant (XSD, namespace, features, validators,
+  builder stages) and compose via `#with`.
+- National profiles: `SEPA::Profiles::ISO`, `EPC`, `CFONB` (🇫🇷),
+  `DK` (🇩🇪).
+- Public resolution via `country:` / `version:` — `country: :fr` picks
+  CFONB, `country: :de` picks DK, unknown countries fall back to EPC.
+- `SEPA::UnsupportedVersionError` with `country`, `version`,
+  `available_versions`.
+
+### Fixed
+
+- XSD cache collision when two profiles share an ISO schema name but
+  point to different XSD files (the cache is now keyed by `profile.id`).
+
 ## [0.16.0] - 2026-04-08
 
 ### Breaking

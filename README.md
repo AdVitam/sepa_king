@@ -3,97 +3,176 @@
 [![Build Status](https://github.com/AdVitam/sepa_rator/workflows/Test/badge.svg?branch=master)](https://github.com/AdVitam/sepa_rator/actions)
 
 Successor to [salesking/sepa_king](https://github.com/salesking/sepa_king) (unmaintained since 2022).
-Adds support for newer SEPA schemas (`pain.001.001.09`, `pain.001.001.13`,
-`pain.008.001.08`, `pain.008.001.12`) with extensive code quality
-and security improvements.
+Adds support for newer SEPA schemas and a **profile-based architecture** that makes
+national variants (CFONB for France, DK/DFÜ for Germany, …) first-class.
 
 ## Features
 
-* **Credit Transfer** (`pain.001`) — schemas `.001.13`, `.001.09`, `.003.03`, `.002.03`, `.001.03`, `.001.03.ch.02`
-* **Direct Debit** (`pain.008`) — schemas `.001.12`, `.001.08`, `.003.02`, `.002.02`, `.001.02`
-* Full XSD validation on every generated XML
-* Postal addresses, contact details, LEI, regulatory reporting
-* Flexible charge bearer (SLEV, DEBT, CRED, SHAR)
-* Mandate amendment support (original mandate ID, debtor account, creditor scheme)
+- **Credit Transfer** (`pain.001`) — schemas `.001.13`, `.001.09`, `.003.03`, `.002.03`, `.001.03`
+- **Direct Debit** (`pain.008`) — schemas `.001.12`, `.001.08`, `.003.02`, `.002.02`, `.001.02`
+- **National profiles** — `CFONB` (🇫🇷), `DK/DFÜ` (🇩🇪), generic `EPC` SEPA
+- Resolves the right profile from a simple `country: :fr` hint
+- Full XSD validation on every generated XML
+- Postal addresses, contact details, LEI, regulatory reporting
+- Flexible charge bearer (SLEV, DEBT, CRED, SHAR)
+- Mandate amendment support (original mandate ID, debtor account, creditor scheme)
 
 **pain** = **Pa**yment **In**itiation (ISO 20022).
 
 ## Requirements
 
-* Ruby 3.1+
-* ActiveModel 7.0+ (including 8.1)
+- Ruby 3.2+
+- ActiveModel 7.0+ (tested up to 8.1)
 
 ## Installation
 
 ```ruby
-gem 'sepa_rator'
+gem 'sepa_rator', '~> 1.0'
 ```
 
 ## Quick start
 
-### Credit Transfer
+### The simplest possible Credit Transfer
+
+No profile, no country, no schema name — defaults to the latest EPC SEPA profile:
 
 ```ruby
 sct = SEPA::CreditTransfer.new(
-  name: 'Debtor Inc.',
-  bic:  'BANKDEFFXXX',
-  iban: 'DE87200500001234567890'
+  name: 'Acme Ltd',
+  bic:  'BNPAFRPPXXX',
+  iban: 'FR7612345678901234567890123'
 )
 
 sct.add_transaction(
-  name:   'Creditor AG',
-  bic:    'PBNKDEFF370',
-  iban:   'DE37112589611964645802',
+  name:   'Supplier GmbH',
+  iban:   'DE21500500009876543210',
   amount: 102.50,
-  reference: 'XYZ-1234/123',
+  reference: 'INV-123',
   remittance_information: 'Invoice 123'
 )
 
-xml = sct.to_xml                          # pain.001.001.03 (default)
-xml = sct.to_xml('pain.001.001.09')       # newer schema
-xml = sct.to_xml('pain.001.001.13')       # latest schema
+xml = sct.to_xml
 ```
 
-### Direct Debit
+### The simplest possible Direct Debit
 
 ```ruby
 sdd = SEPA::DirectDebit.new(
-  name:                'Creditor Inc.',
-  bic:                 'BANKDEFFXXX',
-  iban:                'DE87200500001234567890',
-  creditor_identifier: 'DE98ZZZ09999999999'
+  name:                'Acme Ltd',
+  bic:                 'BNPAFRPPXXX',
+  iban:                'FR7612345678901234567890123',
+  creditor_identifier: 'FR72ZZZ123456'
 )
 
 sdd.add_transaction(
-  name:                      'Debtor Corp.',
-  bic:                       'SPUEDE2UXXX',
+  name:                      'Customer SA',
   iban:                      'DE21500500009876543210',
   amount:                    39.99,
-  reference:                 'XYZ/2013-08-ABO/6789',
-  mandate_id:                'K-02-2011-12345',
-  mandate_date_of_signature: Date.new(2011, 1, 25),
-  sequence_type:             'OOFF'
+  reference:                 'SUB/2025-08/001',
+  mandate_id:                'MND-2025-001',
+  mandate_date_of_signature: Date.new(2025, 1, 15)
 )
 
-xml = sdd.to_xml                          # pain.008.001.02 (default)
-xml = sdd.to_xml('pain.008.001.08')       # newer schema
-xml = sdd.to_xml('pain.008.001.12')       # latest schema
+xml = sdd.to_xml
 ```
 
-### Validators
+## The 4-level public API
 
-Reuse SEPA validators in your own models:
+`sepa_rator` exposes a progressive API: the simpler path covers 90 % of use
+cases; the explicit path is there when you need it.
+
+### Level 0 — defaults (generic SEPA)
+
+Do nothing special and get the latest EPC SEPA profile
+(`pain.001.001.13` for credit transfer, `pain.008.001.12` for direct debit):
+
+```ruby
+SEPA::CreditTransfer.new(name: ..., iban: ..., bic: ...)
+SEPA::DirectDebit.new(name: ..., iban: ..., bic: ..., creditor_identifier: ...)
+```
+
+### Level 1 — hint by country
+
+The country code is **the country of the bank that will receive and process
+your XML file** — your own bank for credit transfers, the creditor's bank for
+direct debits. It is **not** the country of the beneficiary.
+
+> Example: a company with a French bank pays Italian and German suppliers.
+> The file goes to the French bank, so write `country: :fr`. The suppliers'
+> IBANs can be from any SEPA country.
+
+```ruby
+SEPA::CreditTransfer.new(country: :fr, name: ..., iban: ..., bic: ...)
+# → SEPA::Profiles::CFONB::SCT_13
+
+SEPA::DirectDebit.new(country: :de, name: ..., iban: ..., bic: ...,
+                      creditor_identifier: ...)
+# → SEPA::Profiles::DK::SDD_12_GBIC5
+```
+
+Countries without a dedicated profile (e.g. `:it`, `:es`, `:be`) fall back
+to the generic EPC profile automatically.
+
+### Level 2 — country + version
+
+If your bank hasn't upgraded to the latest ISO version yet, pin the version:
+
+```ruby
+SEPA::CreditTransfer.new(country: :fr, version: :v09, ...)
+# → SEPA::Profiles::CFONB::SCT_09
+```
+
+Supported version symbols:
+
+| Family          | Versions                |
+|-----------------|-------------------------|
+| `credit_transfer` | `:v09`, `:v13`, `:latest` |
+| `direct_debit`    | `:v08`, `:v12`, `:latest` |
+
+Requesting an unknown version raises `SEPA::UnsupportedVersionError` with
+the list of available versions.
+
+### Level 3 — explicit profile (power user)
+
+Pass a `SEPA::Profile` constant directly when you need a specific variant:
+
+```ruby
+SEPA::CreditTransfer.new(
+  profile: SEPA::Profiles::DK::SCT_09_GBIC5,
+  name: ..., iban: ..., bic: ...
+)
+```
+
+`profile:` is mutually exclusive with `country:` / `version:` — passing
+both raises `ArgumentError`.
+
+## Supported profiles
+
+| Family              | Namespace        | Profiles                                                                                                                               |
+|---------------------|------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+| ISO (raw XSD)       | `Profiles::ISO`  | `SCT_03`, `SCT_09`, `SCT_13`, `SCT_EPC_002_03`, `SCT_EPC_003_03`, `SDD_02`, `SDD_08`, `SDD_12`, `SDD_EPC_002_02`, `SDD_EPC_003_02`     |
+| EPC SEPA            | `Profiles::EPC`  | `SCT_09`, `SCT_13`, `SDD_08`, `SDD_12`                                                                                                 |
+| CFONB (France 🇫🇷) | `Profiles::CFONB` | `SCT_09`, `SCT_13`, `SDD_08`, `SDD_12`                                                                                                 |
+| DK / DFÜ (Germany 🇩🇪) | `Profiles::DK`   | `SCT_09_GBIC5`, `SCT_13_GBIC5`, `SDD_08_GBIC5`, `SDD_12_GBIC5`                                                                         |
+
+Adding a new country is a single file in `lib/sepa_rator/profiles/` plus
+entries in `lib/sepa_rator/profiles/country_defaults.rb`.
+
+## Reusing validators
 
 ```ruby
 class BankAccount < ActiveRecord::Base
   validates_with SEPA::IBANValidator, field_name: :iban
   validates_with SEPA::BICValidator,  field_name: :bic
+  validates_with SEPA::LEIValidator,  field_name: :agent_lei
 end
 ```
 
 ## Documentation
 
-For the full list of options (addresses, charge bearer, amendment info, batch booking, service level, etc.), see [DOCUMENTATION.md](DOCUMENTATION.md).
+For the full list of options (addresses, charge bearer, amendment info,
+regulatory reporting, LEI, contact details, etc.), see
+[DOCUMENTATION.md](DOCUMENTATION.md).
 
 ## Changelog
 
@@ -101,17 +180,19 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ## Contributors
 
-* [Original contributors](https://github.com/salesking/sepa_king/graphs/contributors) (salesking/sepa_king)
-* [sepa_rator contributors](https://github.com/AdVitam/sepa_rator/graphs/contributors)
+- [Original contributors](https://github.com/salesking/sepa_king/graphs/contributors) (salesking/sepa_king)
+- [sepa_rator contributors](https://github.com/AdVitam/sepa_rator/graphs/contributors)
 
 ## Resources
 
-* [ISO 20022 message definitions](https://www.iso20022.org/iso-20022-message-definitions)
-* <https://www.ebics.de/de/datenformate>
+- [ISO 20022 message definitions](https://www.iso20022.org/iso-20022-message-definitions)
+- [EPC rulebooks](https://www.europeanpaymentscouncil.eu/document-library)
+- [CFONB guides](https://www.cfonb.org/espaces-telechargements/documents)
+- [EBICS / DK data formats](https://www.ebics.de/de/datenformate)
 
 ## License
 
 Released under the [MIT License](LICENSE.txt).
 
-Originally copyright (c) 2013-2022 Georg Leciejewski (SalesKing), Georg Ledermann.
-Copyright (c) 2025-2026 AdVitam.
+- Originally copyright (c) 2013-2022 Georg Leciejewski (SalesKing), Georg Ledermann.
+- Copyright (c) 2025-2026 Advitam — fork, maintenance, profile-based architecture.
