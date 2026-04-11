@@ -133,6 +133,10 @@ RSpec.describe SEPA::ProfileFeatures do
       expect(features.charset).to eq :iso_latin
       expect(features.extras).to eq({})
     end
+
+    it 'defaults instr_for_cdtr_agt_code_type to the ISO Instruction3Code enum' do
+      expect(described_class.default.instr_for_cdtr_agt_code_type).to eq :instruction3_code
+    end
   end
 
   describe '#merge' do

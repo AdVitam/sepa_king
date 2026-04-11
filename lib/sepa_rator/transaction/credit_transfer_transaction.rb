@@ -102,9 +102,10 @@ module SEPA
     def valid_instruction_code?(code, profile)
       return true unless code
 
-      if profile.features.instr_for_dbtr_agt_format == :structured
+      case profile.features.instr_for_cdtr_agt_code_type
+      when :external_code
         code.to_s.length.between?(1, 4)
-      else
+      when :instruction3_code
         INSTRUCTION3_CODES.include?(code)
       end
     end

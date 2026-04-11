@@ -7,6 +7,8 @@ module SEPA
     :requires_bic,
     :org_bic_tag,
     :instr_for_dbtr_agt_format,
+    # `:instruction3_code` (ISO enum) or `:external_code` (free 1-4 char, v13+)
+    :instr_for_cdtr_agt_code_type,
     :regulatory_reporting_version,
     :charset,
     :min_amount,
@@ -21,6 +23,7 @@ module SEPA
         requires_bic: false,
         org_bic_tag: :AnyBIC,
         instr_for_dbtr_agt_format: :text,
+        instr_for_cdtr_agt_code_type: :instruction3_code,
         regulatory_reporting_version: :v3,
         charset: :iso_latin,
         min_amount: nil,

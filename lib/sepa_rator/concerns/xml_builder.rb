@@ -120,15 +120,6 @@ module SEPA
       end
     end
 
-    def build_ultimate_party(builder, tag, name, contact_details: nil)
-      return unless name
-
-      builder.__send__(tag) do
-        builder.Nm(name)
-        build_contact_details(builder, contact_details)
-      end
-    end
-
     def build_purpose(builder, purpose_code)
       return unless purpose_code
 

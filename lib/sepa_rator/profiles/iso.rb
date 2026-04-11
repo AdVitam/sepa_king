@@ -96,6 +96,7 @@ module SEPA
           namespace: 'urn:iso:std:iso:20022:tech:xsd:pain.001.001.13',
           features: {
             instr_for_dbtr_agt_format: :structured,
+            instr_for_cdtr_agt_code_type: :external_code,
             regulatory_reporting_version: :v10
           },
           capabilities: %i[mandate_related_info initiation_source]
