@@ -13,20 +13,29 @@ module SEPA
       # `ValidationError` as soon as it sees a transaction-level address
       # that uses AdrLine without any structured field.
       class StructuredAddress
-        ADDRESS_ACCESSORS = %i[creditor_address debtor_address].freeze
+        TRANSACTION_ADDRESS_ACCESSORS = %i[creditor_address debtor_address].freeze
 
         def self.validate(transaction, profile)
-          ADDRESS_ACCESSORS.each do |accessor|
+          TRANSACTION_ADDRESS_ACCESSORS.each do |accessor|
             next unless transaction.respond_to?(accessor)
 
-            address = transaction.public_send(accessor)
-            next if address.nil?
-            next if address.structured?
-
-            raise SEPA::ValidationError,
-                  "[#{profile.id}] #{accessor} must use structured fields " \
-                  '(StrtNm, PstCd, TwnNm, …), not AdrLine (CFONB rule)'
+            enforce!(transaction.public_send(accessor), accessor, profile)
           end
+
+          # DD transactions can override the PmtInf creditor — its address
+          # is serialised in `PmtInf/Cdtr` and must follow the same rule.
+          return unless transaction.respond_to?(:creditor_account) && transaction.creditor_account
+
+          enforce!(transaction.creditor_account.address, 'creditor_account.address', profile)
+        end
+
+        def self.enforce!(address, label, profile)
+          return if address.nil?
+          return if address.structured?
+
+          raise SEPA::ValidationError,
+                "[#{profile.id}] #{label} must use structured fields " \
+                '(StrtNm, PstCd, TwnNm, …), not AdrLine (CFONB rule)'
         end
       end
     end

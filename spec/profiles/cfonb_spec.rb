@@ -122,6 +122,19 @@ RSpec.describe SEPA::Profiles::CFONB do
         sdd.add_transaction(direct_debit_transaction(debtor_address: address))
       end.not_to raise_error
     end
+
+    it 'rejects an AdrLine-only address on a per-transaction creditor_account override' do
+      sdd = fresh_sdd
+      unstructured_creditor = SEPA::CreditorAccount.new(
+        name: 'Other Creditor', bic: 'RABONL2U', iban: 'NL08RABO0135742099',
+        creditor_identifier: 'NL53ZZZ091734220000',
+        address: SEPA::CreditorAddress.new(country_code: 'NL',
+                                           address_line1: '1 Herengracht', address_line2: '1017 Amsterdam')
+      )
+      expect do
+        sdd.add_transaction(direct_debit_transaction(creditor_account: unstructured_creditor))
+      end.to raise_error(SEPA::ValidationError, /creditor_account\.address must use structured fields/)
+    end
   end
 
   describe 'profile ids' do

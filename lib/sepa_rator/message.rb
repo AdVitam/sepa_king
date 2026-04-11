@@ -76,6 +76,15 @@ module SEPA
     def to_xml
       raise SEPA::ValidationError, errors.full_messages.join("\n") unless valid?
 
+      # Fail-safe against post-insertion mutations of the account or
+      # transactions (e.g. a caller flipping `currency` after adding).
+      validate_account_against_profile!
+      transactions.each do |transaction|
+        next if transaction.compatible_with?(profile)
+
+        raise SEPA::ValidationError, "Transaction not compatible with profile #{profile.id}"
+      end
+
       doc = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |builder|
         builder.Document(xml_namespace_attributes) do
           builder.__send__(self.class::XML_MAIN_TAG) do

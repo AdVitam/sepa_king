@@ -86,6 +86,26 @@ RSpec.describe SEPA::CreditTransfer do
       end
     end
 
+    context 'profile re-validation on mutated state (fail-safe)' do
+      it 'catches a post-insertion mutation that breaks EPC currency rule' do
+        sct = SEPA::CreditTransfer.new(
+          profile: SEPA::Profiles::EPC::SCT_13, name: SEPA::TestData::DEBTOR_NAME,
+          bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN
+        )
+        sct.add_transaction(credit_transfer_transaction)
+        sct.transactions.first.currency = 'CHF'
+        expect { sct.to_xml }.to raise_error(SEPA::ValidationError, /not compatible/)
+      end
+
+      it 'catches an account field mutated to an incompatible value' do
+        sct = SEPA::CreditTransfer.new(profile: sct_03, name: SEPA::TestData::DEBTOR_NAME,
+                                       bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN)
+        sct.add_transaction(credit_transfer_transaction)
+        sct.account.agent_lei = SEPA::TestData::LEI
+        expect { sct.to_xml }.to raise_error(SEPA::ValidationError, /does not support LEI/)
+      end
+    end
+
     context 'with creditor address using AdrLine (IBAN-only transfer)' do
       let(:setup) do
         sca = SEPA::CreditorAddress.new(
