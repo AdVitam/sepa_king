@@ -27,6 +27,32 @@ RSpec.describe SEPA::CreditTransfer do
                                  bic: SEPA::TestData::DEBTOR_BIC)
       end.to raise_error(ArgumentError, /direct_debit/)
     end
+
+    context 'account-vs-profile validation' do
+      it 'rejects an account with agent_lei on a non-LEI profile' do
+        expect do
+          SEPA::CreditTransfer.new(profile: sct_03, name: SEPA::TestData::DEBTOR_NAME,
+                                   bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN,
+                                   agent_lei: SEPA::TestData::LEI)
+        end.to raise_error(SEPA::ValidationError, /agent_lei.*does not support LEI/)
+      end
+
+      it 'rejects an account with initiating_party_lei on a non-LEI profile' do
+        expect do
+          SEPA::CreditTransfer.new(profile: sct_03, name: SEPA::TestData::DEBTOR_NAME,
+                                   bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN,
+                                   initiating_party_lei: SEPA::TestData::LEI)
+        end.to raise_error(SEPA::ValidationError, /initiating_party_lei.*does not support LEI/)
+      end
+
+      it 'accepts agent_lei on a LEI-capable profile (v09)' do
+        expect do
+          SEPA::CreditTransfer.new(profile: sct_09, name: SEPA::TestData::DEBTOR_NAME,
+                                   bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN,
+                                   agent_lei: SEPA::TestData::LEI)
+        end.not_to raise_error
+      end
+    end
   end
 
   describe :add_transaction do
@@ -110,9 +136,9 @@ RSpec.describe SEPA::CreditTransfer do
           end
         end
 
-        it 'fails for pain.001.002.03 (requires BIC)' do
-          expect { build_ct(sct_epc_002_03, bic: nil, &setup).to_xml }
-            .to raise_error(SEPA::ValidationError, /Account missing required BIC/)
+        it 'fails at construction for pain.001.002.03 (requires BIC)' do
+          expect { build_ct(sct_epc_002_03, bic: nil, &setup) }
+            .to raise_error(SEPA::ValidationError, /missing the required BIC/)
         end
       end
 
@@ -1066,12 +1092,11 @@ RSpec.describe SEPA::CreditTransfer do
         expect(xml.index('BICFI')).to be < xml.index('LEI')
       end
 
-      it 'rejects the account for v03 via transaction compatibility' do
-        # Creating a v03 message with an agent_lei-bearing transaction fails at add_transaction.
-        expect do
-          sct = build_ct(sct_03, account_attrs)
-          sct.add_transaction(credit_transfer_transaction(agent_lei: SEPA::TestData::LEI))
-        end.to raise_error(SEPA::ValidationError, /not compatible/)
+      it 'rejects an account with agent_lei for a v03 profile at construction' do
+        # agent_lei is a LEI-capability field; v03 profiles do not advertise :lei,
+        # so constructing the Message must fail immediately.
+        expect { build_ct(sct_03, account_attrs) }
+          .to raise_error(SEPA::ValidationError, /agent_lei.*does not support LEI/)
       end
     end
 

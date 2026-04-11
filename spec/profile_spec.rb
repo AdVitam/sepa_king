@@ -70,9 +70,25 @@ RSpec.describe SEPA::Profile do
       expect(derived.validators).to eq [validator_a, validator_b]
     end
 
-    it 'concatenates capabilities and de-duplicates' do
+    it 'concatenates capabilities and de-duplicates when given a raw Array' do
       derived = base.with(capabilities: %i[lei mandate_related_info])
       expect(derived.capabilities).to contain_exactly(:uetr, :lei, :mandate_related_info)
+    end
+
+    it 'drops parent capabilities when given `{ replace: [...] }`' do
+      derived = base.with(capabilities: { replace: [].freeze })
+      expect(derived.capabilities).to be_empty
+    end
+
+    it 'appends capabilities when given `{ add: [...] }`' do
+      derived = base.with(capabilities: { add: %i[mandate_related_info] })
+      expect(derived.capabilities).to contain_exactly(:uetr, :lei, :mandate_related_info)
+    end
+
+    it 'supports the same replace/add operators for validators' do
+      validator_c = Class.new
+      expect(base.with(validators: { replace: [validator_c] }).validators).to eq [validator_c]
+      expect(base.with(validators: { add: [validator_c] }).validators).to eq [validator_a, validator_c]
     end
 
     it 'replaces a single stage via { replace:, with: }' do

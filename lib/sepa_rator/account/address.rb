@@ -66,5 +66,14 @@ module SEPA
     validates_length_of :country_sub_division, maximum: 35,  allow_nil: true
     validates_length_of :care_of,              maximum: 140, allow_nil: true
     validates_length_of :unit_number,          maximum: 16,  allow_nil: true
+
+    # The four PostalAddress6 structured fields that CFONB, DK/DFÜ and the
+    # EPC 2024+ migration require instead of the legacy `AdrLine` form.
+    # An address is considered structured as soon as one of them is set.
+    STRUCTURED_FIELDS = %i[street_name building_number post_code town_name].freeze
+
+    def structured?
+      STRUCTURED_FIELDS.any? { |field| public_send(field) }
+    end
   end
 end

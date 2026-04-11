@@ -61,6 +61,41 @@ RSpec.describe SEPA::Profiles::CFONB do
                           ))
       expect(sct.to_xml).to validate_against('pain.001.001.09.xsd')
     end
+
+    context 'account-level address' do
+      it 'rejects an AdrLine-only account address at construction' do
+        expect do
+          SEPA::CreditTransfer.new(
+            profile: profile, name: SEPA::TestData::DEBTOR_NAME,
+            bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN,
+            address: SEPA::Address.new(country_code: 'FR',
+                                       address_line1: '1 rue de Rivoli',
+                                       address_line2: '75001 Paris')
+          )
+        end.to raise_error(SEPA::ValidationError, /account\.address must use structured fields/)
+      end
+
+      it 'accepts a structured account address' do
+        expect do
+          SEPA::CreditTransfer.new(
+            profile: profile, name: SEPA::TestData::DEBTOR_NAME,
+            bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN,
+            address: SEPA::Address.new(country_code: 'FR', street_name: 'rue de Rivoli',
+                                       post_code: '75001', town_name: 'Paris')
+          )
+        end.not_to raise_error
+      end
+
+      it 'accepts an AdrLine-only address when the profile does not require structured fields' do
+        expect do
+          SEPA::CreditTransfer.new(
+            profile: SEPA::Profiles::ISO::SCT_09, name: SEPA::TestData::DEBTOR_NAME,
+            bic: SEPA::TestData::DEBTOR_BIC, iban: SEPA::TestData::DEBTOR_IBAN,
+            address: SEPA::Address.new(country_code: 'FR', address_line1: '1 rue de Rivoli')
+          )
+        end.not_to raise_error
+      end
+    end
   end
 
   describe 'SDD 08' do

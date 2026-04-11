@@ -40,6 +40,7 @@ module SEPA
       @profile = resolve_profile(country: country, version: version, profile: profile)
       @grouped_transactions = {}
       @account = account_class.new(account_options)
+      validate_account_against_profile!
     end
 
     # Add a transaction to the message. The transaction is validated both
@@ -74,8 +75,6 @@ module SEPA
     # @raise [SEPA::SchemaValidationError] if the generated XML fails XSD validation
     def to_xml
       raise SEPA::ValidationError, errors.full_messages.join("\n") unless valid?
-      raise SEPA::ValidationError, "Account missing required BIC for profile #{profile.id}" \
-        if profile.features.requires_bic && (account.bic.nil? || account.bic.empty?)
 
       doc = Nokogiri::XML::Builder.new(encoding: 'UTF-8') do |builder|
         builder.Document(xml_namespace_attributes) do
@@ -143,6 +142,35 @@ module SEPA
     end
 
     private
+
+    # Enforce profile-level rules that apply to the message account (as
+    # opposed to per-transaction rules, which run inside `add_transaction`).
+    # Running these checks at construction time means callers get the same
+    # fail-fast guarantee they'd get from `add_transaction`: if the account
+    # is incompatible with the profile, the Message cannot be instantiated.
+    def validate_account_against_profile!
+      raise SEPA::ValidationError, "[#{profile.id}] account is missing the required BIC" if profile.features.requires_bic && (account.bic.nil? || account.bic.empty?)
+
+      unless profile.supports?(:lei)
+        if account.agent_lei && !account.agent_lei.empty?
+          raise SEPA::ValidationError,
+                "[#{profile.id}] account.agent_lei is set but the profile does not support LEI"
+        end
+        if account.respond_to?(:initiating_party_lei) &&
+           account.initiating_party_lei && !account.initiating_party_lei.empty?
+          raise SEPA::ValidationError,
+                "[#{profile.id}] account.initiating_party_lei is set but the profile does not support LEI"
+        end
+      end
+
+      return unless profile.features.requires_structured_address
+      return if account.address.nil?
+      return if account.address.structured?
+
+      raise SEPA::ValidationError,
+            "[#{profile.id}] account.address must use structured fields " \
+            '(StrtNm, PstCd, TwnNm, …), not AdrLine'
+    end
 
     # Resolves the (country, version, profile) triple to a single Profile.
     # Passing `profile:` bypasses the country/version lookup entirely; the

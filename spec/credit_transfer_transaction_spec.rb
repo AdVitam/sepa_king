@@ -93,6 +93,23 @@ RSpec.describe SEPA::CreditTransferTransaction do
           .not_to be_compatible_with(sct_epc_002_03)
       end
     end
+
+    context 'instruction_for_debtor_agent_code schema compatibility' do
+      it 'accepts the code on iso.pain.001.001.13 (structured format)' do
+        expect(SEPA::CreditTransferTransaction.new(instruction_for_debtor_agent_code: 'URGP'))
+          .to be_compatible_with(sct_13)
+      end
+
+      it 'rejects the code on iso.pain.001.001.09 (text format)' do
+        expect(SEPA::CreditTransferTransaction.new(instruction_for_debtor_agent_code: 'URGP'))
+          .not_to be_compatible_with(sct_09)
+      end
+
+      it 'rejects the code on iso.pain.001.001.03 (text format)' do
+        expect(SEPA::CreditTransferTransaction.new(instruction_for_debtor_agent_code: 'URGP'))
+          .not_to be_compatible_with(sct_03)
+      end
+    end
   end
 
   context 'Requested date' do

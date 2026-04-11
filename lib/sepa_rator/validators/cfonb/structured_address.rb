@@ -14,7 +14,6 @@ module SEPA
       # that uses AdrLine without any structured field.
       class StructuredAddress
         ADDRESS_ACCESSORS = %i[creditor_address debtor_address].freeze
-        STRUCTURED_FIELDS = %i[street_name building_number post_code town_name].freeze
 
         def self.validate(transaction, profile)
           ADDRESS_ACCESSORS.each do |accessor|
@@ -22,16 +21,12 @@ module SEPA
 
             address = transaction.public_send(accessor)
             next if address.nil?
-            next if structured?(address)
+            next if address.structured?
 
             raise SEPA::ValidationError,
                   "[#{profile.id}] #{accessor} must use structured fields " \
                   '(StrtNm, PstCd, TwnNm, …), not AdrLine (CFONB rule)'
           end
-        end
-
-        def self.structured?(address)
-          STRUCTURED_FIELDS.any? { |field| address.respond_to?(field) && address.public_send(field) }
         end
       end
     end

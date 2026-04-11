@@ -117,8 +117,9 @@ module SEPA
           xsd_path: 'iso/pain.001.002.03.xsd',
           namespace: 'urn:iso:std:iso:20022:tech:xsd:pain.001.002.03',
           features: { requires_bic: true },
-          # EPC-only: no InstrForCdtrAgt, InstrForDbtrAgt, RgltryRptg
-          capabilities: [].freeze,
+          # EPC AOS drops InstrForCdtrAgt, InstrForDbtrAgt and RgltryRptg —
+          # `{ replace: }` clears SCT_03's capabilities rather than appending.
+          capabilities: { replace: [].freeze },
           transaction_stages: [
             CT_STAGE::PaymentId,
             CT_STAGE::Amount,

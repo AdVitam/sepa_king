@@ -96,14 +96,37 @@ module SEPA
       when :features
         old.merge(**value)
       when :validators
-        (old + Array(value)).freeze
+        merge_list(old, value, unique: false)
       when :capabilities
-        (old + Array(value)).uniq.freeze
+        merge_list(old, value, unique: true)
       when :transaction_stages, :payment_info_stages, :group_header_stages
         StageList.merge(old, value)
       else
         value
       end
+    end
+
+    # Merge helper for the flat list fields (`validators`, `capabilities`).
+    #
+    # - A raw Array is appended to the parent list (most common case — a
+    #   child profile extends its parent with more rules).
+    # - `{ replace: [...] }` drops the parent list and uses the new one —
+    #   required by tightened profiles like EPC AOS that need a stricter
+    #   set than their ISO parent.
+    # - `{ add: [...] }` is a more explicit synonym for "append".
+    def merge_list(old, value, unique:)
+      case value
+      when Array
+        combined = old + value
+      when Hash
+        case value
+        in { replace: new }
+          combined = Array(new)
+        in { add: new }
+          combined = old + Array(new)
+        end
+      end
+      (unique ? combined.uniq : combined).freeze
     end
   end
 

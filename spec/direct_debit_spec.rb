@@ -126,9 +126,9 @@ RSpec.describe SEPA::DirectDebit do
           end
         end
 
-        it 'fails for pain.008.002.02 (requires BIC)' do
-          expect { build_dd(sdd_epc_002_02, bic: nil, &setup).to_xml }
-            .to raise_error(SEPA::ValidationError, /Account missing required BIC/)
+        it 'fails at construction for pain.008.002.02 (requires BIC)' do
+          expect { build_dd(sdd_epc_002_02, bic: nil, &setup) }
+            .to raise_error(SEPA::ValidationError, /missing the required BIC/)
         end
       end
 
