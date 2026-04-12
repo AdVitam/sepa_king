@@ -2,7 +2,7 @@
 
 Successor to [salesking/sepa_king](https://github.com/salesking/sepa_king) (unmaintained since 2022).
 
-## [Unreleased]
+## [1.1.0] - 2026-04-12
 
 ### Added
 
