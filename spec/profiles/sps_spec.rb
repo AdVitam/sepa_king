@@ -182,6 +182,13 @@ RSpec.describe SEPA::Profiles::SPS do
       end.to raise_error(SEPA::ValidationError, /structured fields/)
     end
 
+    it 'rejects CHF direct debits (SEPA SDD is EUR-only)' do
+      sdd = direct_debit_message(profile: profile)
+      expect do
+        sdd.add_transaction(direct_debit_transaction(currency: 'CHF'))
+      end.to raise_error(SEPA::ValidationError, /not compatible/)
+    end
+
     it 'generates valid XML' do
       sdd = direct_debit_message(profile: profile)
       sdd.add_transaction(direct_debit_transaction(

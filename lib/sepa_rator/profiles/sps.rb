@@ -23,10 +23,13 @@ module SEPA
           (txn.service_level.nil? || txn.service_level == 'SEPA')
       end
 
+      # SEPA Direct Debit is EUR-only, even in Switzerland. CHF direct
+      # debits use a separate Swiss domestic scheme (LSV+/BDD) outside the
+      # scope of this gem.
       DD_SPS_RULES = lambda do |txn, _profile|
         txn.instruction_priority.nil? &&
           (txn.charge_bearer.nil? || txn.charge_bearer == 'SLEV') &&
-          SPS_CURRENCIES.include?(txn.currency) &&
+          txn.currency == 'EUR' &&
           ISO::DD_V1_SEQUENCE_TYPES.include?(txn.sequence_type) &&
           %w[CORE B2B].include?(txn.local_instrument)
       end
