@@ -2,7 +2,7 @@
 
 Successor to [salesking/sepa_king](https://github.com/salesking/sepa_king) (unmaintained since 2022).
 
-## [Unreleased]
+## [1.2.0] - 2026-04-15
 
 ### Added
 
@@ -14,6 +14,7 @@ Successor to [salesking/sepa_king](https://github.com/salesking/sepa_king) (unma
 - Add Ruby 4.0 to CI test matrix (Rails 8.1 only)
 - Extract shared `Validators::MinAmount` from `Validators::DK::MinAmount`
 - Use `File.open` instead of `File.read` for XSD loading to support `xs:include`/`xs:redefine`
+- README: condense Features section and add supported schemas & profiles table
 
 ## [1.1.0] - 2026-04-12
 

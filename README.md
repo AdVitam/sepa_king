@@ -8,16 +8,28 @@ national variants (CFONB for France, DK/DFÜ for Germany, …) first-class.
 
 ## Features
 
-- **Credit Transfer** (`pain.001`) — schemas `.001.13`, `.001.09`, `.003.03`, `.002.03`, `.001.03`
-- **Direct Debit** (`pain.008`) — schemas `.001.12`, `.001.08`, `.003.02`, `.002.02`, `.001.02`
-- **National profiles** — `CFONB` (🇫🇷), `DK/DFÜ` (🇩🇪), generic `EPC` SEPA
-- Resolves the right profile from a simple `country: :fr` hint
+- **Credit Transfer** (`pain.001`) and **Direct Debit** (`pain.008`) across 7 profile families (see table below)
+- Resolves the right profile from a simple `country: :fr` hint — falls back to generic EPC for unlisted countries
 - Full XSD validation on every generated XML
 - Postal addresses, contact details, LEI, regulatory reporting
 - Flexible charge bearer (SLEV, DEBT, CRED, SHAR)
 - Mandate amendment support (original mandate ID, debtor account, creditor scheme)
 
 **pain** = **Pa**yment **In**itiation (ISO 20022).
+
+## Supported schemas & profiles
+
+| Family | Namespace | Country hint | Credit Transfer (pain.001) | Direct Debit (pain.008) |
+|---|---|---|---|---|
+| ISO (raw XSD) | `Profiles::ISO` | — | `SCT_03`, `SCT_09`, `SCT_13`, `SCT_EPC_002_03`, `SCT_EPC_003_03` | `SDD_02`, `SDD_08`, `SDD_12`, `SDD_EPC_002_02`, `SDD_EPC_003_02` |
+| EPC SEPA | `Profiles::EPC` | _(SEPA fallback)_ | `SCT_03`, `SCT_09`, `SCT_13` | `SDD_02`, `SDD_08`, `SDD_12` |
+| CFONB 🇫🇷 | `Profiles::CFONB` | `country: :fr` | `SCT_03`, `SCT_09`, `SCT_13` | `SDD_02`, `SDD_08`, `SDD_12` |
+| DK / DFÜ 🇩🇪 | `Profiles::DK` | `country: :de` | `SCT_03_GBIC3`, `SCT_09_GBIC5`, `SCT_13_GBIC5` | `SDD_02_GBIC3`, `SDD_08_GBIC5`, `SDD_12_GBIC5` |
+| SPS 🇨🇭 | `Profiles::SPS` | `country: :ch` | `SCT_03`, `SCT_09`, `SCT_13` | `SDD_02`, `SDD_08`, `SDD_12` |
+| GB 🇬🇧 | `Profiles::GB` | `country: :gb` | `SCT_03`, `SCT_09`, `SCT_13` | `SDD_02`, `SDD_08`, `SDD_12` |
+| AT / PSA 🇦🇹 | `Profiles::AT` | `country: :at` | `SCT_03`, `SCT_09`, `SCT_13` | `SDD_02`, `SDD_08`, `SDD_12` |
+
+For the full per-profile detail (XSD, constraints, capabilities), see [DOCUMENTATION.md](DOCUMENTATION.md#supported-profiles-and-schemas). Adding a new country is a single file in `lib/sepa_rator/profiles/` plus entries in `lib/sepa_rator/profiles/country_defaults.rb`.
 
 ## Requirements
 
@@ -150,21 +162,6 @@ SEPA::CreditTransfer.new(
 
 `profile:` is mutually exclusive with `country:` / `version:` — passing
 both raises `ArgumentError`.
-
-## Supported profiles
-
-| Family              | Namespace        | Profiles                                                                                                                               |
-|---------------------|------------------|----------------------------------------------------------------------------------------------------------------------------------------|
-| ISO (raw XSD)       | `Profiles::ISO`  | `SCT_03`, `SCT_09`, `SCT_13`, `SCT_EPC_002_03`, `SCT_EPC_003_03`, `SDD_02`, `SDD_08`, `SDD_12`, `SDD_EPC_002_02`, `SDD_EPC_003_02`     |
-| EPC SEPA            | `Profiles::EPC`  | `SCT_03`, `SCT_09`, `SCT_13`, `SDD_02`, `SDD_08`, `SDD_12`                                                                             |
-| CFONB (France 🇫🇷) | `Profiles::CFONB` | `SCT_03`, `SCT_09`, `SCT_13`, `SDD_02`, `SDD_08`, `SDD_12`                                                                             |
-| DK / DFÜ (Germany 🇩🇪) | `Profiles::DK`   | `SCT_03_GBIC3`, `SCT_09_GBIC5`, `SCT_13_GBIC5`, `SDD_02_GBIC3`, `SDD_08_GBIC5`, `SDD_12_GBIC5`                                         |
-| SPS (Switzerland 🇨🇭) | `Profiles::SPS`  | `SCT_03`, `SCT_09`, `SCT_13`, `SDD_02`, `SDD_08`, `SDD_12`                                                                              |
-| GB (United Kingdom 🇬🇧) | `Profiles::GB`  | `SCT_03`, `SCT_09`, `SCT_13`, `SDD_02`, `SDD_08`, `SDD_12`                                                                              |
-| AT / PSA (Austria 🇦🇹)    | `Profiles::AT`  | `SCT_03`, `SCT_09`, `SCT_13`, `SDD_02`, `SDD_08`, `SDD_12`                                                                              |
-
-Adding a new country is a single file in `lib/sepa_rator/profiles/` plus
-entries in `lib/sepa_rator/profiles/country_defaults.rb`.
 
 ## Reusing validators
 
