@@ -2,6 +2,12 @@
 
 Successor to [salesking/sepa_king](https://github.com/salesking/sepa_king) (unmaintained since 2022).
 
+## [Unreleased]
+
+### Added
+
+- Netherlands (NL) profiles with Betaalvereniging guidelines (`country: :nl`)
+
 ## [1.2.0] - 2026-04-15
 
 ### Added
