@@ -34,7 +34,7 @@ For the full per-profile detail (XSD, constraints, capabilities), see [DOCUMENTA
 
 ## Requirements
 
-- Ruby 3.2+
+- Ruby 3.2+ (tested up to 4.0)
 - ActiveModel 7.0+ (tested up to 8.1)
 
 ## Installation
